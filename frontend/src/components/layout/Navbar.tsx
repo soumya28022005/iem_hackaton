@@ -22,49 +22,45 @@ export function Navbar() {
         isScrolled ? "py-2" : "py-4"
       }`}
     >
-      <div className={`relative flex items-center justify-between px-6 py-3 md:py-4 rounded-full transition-all duration-500 overflow-hidden ${
+      <div className={`relative flex items-center justify-between px-6 py-3 md:py-4 transition-all duration-300 ${
         isScrolled 
-          ? "bg-bg-base/70 backdrop-blur-2xl border border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.5)]" 
-          : "bg-transparent border border-transparent"
+          ? "bg-background border-4 border-foreground shadow-bauhaus-md" 
+          : "bg-transparent border-4 border-transparent"
       }`}>
-        {/* Glow Effect when scrolled */}
-        {isScrolled && (
-          <div className="absolute inset-0 bg-gradient-to-r from-nexus-primary/10 via-transparent to-blue-500/10 pointer-events-none" />
-        )}
-
-        <div className="flex items-center gap-3 relative z-10">
-          <div className="flex items-center justify-center w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-nexus-primary/20 to-blue-500/10 rounded-xl border border-nexus-primary/20 shadow-[0_0_15px_rgba(139,92,246,0.3)]">
-            <Activity className="w-5 h-5 text-nexus-primary" />
+        
+        <div className="flex items-center gap-4 relative z-10">
+          <div className="flex items-center justify-center w-8 h-8 md:w-10 md:h-10 bg-primary-red border-[3px] border-foreground shadow-bauhaus-sm">
+            <Activity className="w-5 h-5 text-white" />
           </div>
-          <span className="text-xl md:text-2xl font-playfair font-bold text-white tracking-widest hidden sm:block">
-            NEXUS
+          <span className="text-xl md:text-2xl font-bold text-foreground tracking-widest hidden sm:block uppercase">
+            Nexus
           </span>
         </div>
 
         <div className="hidden md:flex items-center gap-8 relative z-10">
-          <Link href="#architecture" className="text-sm font-display font-medium text-text-secondary hover:text-white transition-colors">
+          <Link href="#architecture" className="text-sm font-bold text-foreground hover:text-primary-blue hover:underline decoration-2 underline-offset-4 transition-all">
             Architecture
           </Link>
-          <Link href="#features" className="text-sm font-display font-medium text-text-secondary hover:text-white transition-colors">
+          <Link href="#features" className="text-sm font-bold text-foreground hover:text-primary-red hover:underline decoration-2 underline-offset-4 transition-all">
             Features
           </Link>
-          <Link href="#faq" className="text-sm font-display font-medium text-text-secondary hover:text-white transition-colors">
+          <Link href="#faq" className="text-sm font-bold text-foreground hover:text-primary-yellow hover:underline decoration-2 underline-offset-4 transition-all">
             FAQ
           </Link>
         </div>
 
-        <div className="flex items-center gap-4 relative z-10">
+        <div className="flex items-center gap-6 relative z-10">
           <Link 
             href="/login" 
-            className="text-sm font-display font-medium text-text-secondary hover:text-white transition-colors hidden sm:block"
+            className="text-sm font-bold text-foreground hover:text-primary-blue transition-colors hidden sm:block"
           >
             Terminal Login
           </Link>
           <Link 
             href="/login" 
-            className="relative group bg-white hover:bg-gray-200 text-bg-base font-playfair text-xs px-5 py-2.5 rounded-full border border-white transition-all overflow-hidden"
+            className="bg-primary-yellow text-foreground font-bold text-sm px-6 py-2 border-[3px] border-foreground shadow-bauhaus-sm hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-none transition-all"
           >
-            <span className="relative z-10 tracking-wider">INITIATE</span>
+            <span className="tracking-wider uppercase">Initiate</span>
           </Link>
         </div>
       </div>

@@ -147,11 +147,11 @@ export default function LandingPage() {
   const opacityShader = useTransform(scrollYProgress, [0, 0.5], [1, 0.2]);
 
   return (
-    <div className="min-h-screen bg-bg-base overflow-x-hidden selection:bg-nexus-primary/30 selection:text-white">
+    <div className="min-h-screen bg-background text-foreground overflow-x-hidden selection:bg-primary-red selection:text-white">
       {/* Skip link for keyboard users */}
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[200] focus:px-4 focus:py-2 focus:bg-nexus-primary focus:text-white focus:rounded-lg"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[200] focus:px-4 focus:py-2 focus:bg-foreground focus:text-background border-4 border-foreground"
       >
         Skip to content
       </a>
@@ -171,29 +171,12 @@ export default function LandingPage() {
       {/* ============ HERO (Centered, Dashboard-forward) ============ */}
       <section
         ref={containerRef}
-        className="relative pt-32 pb-16 lg:pt-40 lg:pb-24 overflow-hidden"
+        className="relative pt-32 pb-16 lg:pt-40 lg:pb-24 overflow-hidden border-b-4 border-foreground"
       >
-        {/* Ambient gradient field */}
-        <motion.div
-          aria-hidden="true"
-          style={{ opacity: opacityShader, y: yBg }}
-          className="absolute inset-0 z-0 pointer-events-none"
-        >
-          <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[80%] h-[70%] bg-nexus-primary/20 blur-[160px] rounded-full" />
-          <div className="absolute top-[10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/10 blur-[140px] rounded-full" />
-          <div className="absolute top-[20%] left-[-10%] w-[40%] h-[40%] bg-[#C9B6FF]/10 blur-[140px] rounded-full" />
-        </motion.div>
-
-        {/* Dotted grid */}
+        {/* Bauhaus Dotted Grid */}
         <div
           aria-hidden="true"
-          className="absolute inset-0 z-0 pointer-events-none bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.07)_1px,transparent_0)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_at_top,black_20%,transparent_70%)]"
-        />
-
-        {/* Top fade */}
-        <div
-          aria-hidden="true"
-          className="absolute top-0 inset-x-0 h-40 bg-gradient-to-b from-bg-base to-transparent z-0"
+          className="absolute inset-0 z-0 pointer-events-none bauhaus-pattern-dots opacity-20"
         />
 
         <motion.div
@@ -208,54 +191,31 @@ export default function LandingPage() {
           >
             <Link
               href="#features"
-              className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 backdrop-blur-sm text-text-secondary text-[11px] font-medium tracking-wide mb-10 hover:border-nexus-primary/40 hover:bg-white/[0.07] transition-colors"
+              className="group inline-flex items-center gap-2 px-4 py-2 bg-primary-yellow border-[3px] border-foreground text-foreground text-xs font-bold uppercase tracking-wider mb-10 shadow-bauhaus-sm hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all"
             >
-              <span className="px-1.5 py-0.5 rounded-full bg-nexus-primary/15 text-nexus-primary text-[10px] font-semibold tracking-wider">
+              <span className="px-2 py-1 bg-foreground text-background text-[10px] font-bold">
                 NEW
               </span>
-              Nexus v2.4 — autonomous PR drafting now GA
-              <ArrowRight className="w-3 h-3 opacity-60 group-hover:translate-x-0.5 transition-transform" />
+              Nexus v2.4 — Autonomous PR Drafting
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </motion.div>
 
           {/* Headline */}
           <div className="overflow-hidden">
             <RevealText>
-              <h1 className="text-[40px] sm:text-6xl lg:text-[84px] font-semibold text-white tracking-[-0.035em] leading-[0.95] mb-6">
-                The autopilot for
+              <h1 className="text-[50px] sm:text-7xl lg:text-[100px] font-black text-foreground uppercase tracking-tighter leading-[0.85] mb-6">
+                The Autopilot For
                 <br />
-                <span className="relative inline-block">
-                  <span className="text-transparent bg-clip-text bg-gradient-to-br from-white via-nexus-primary to-blue-400">
-                    production incidents.
-                  </span>
-                  <svg
-                    aria-hidden="true"
-                    className="absolute left-0 right-0 -bottom-3 w-full h-3 opacity-60"
-                    viewBox="0 0 400 12"
-                    preserveAspectRatio="none"
-                  >
-                    <path
-                      d="M2 8 Q 100 2 200 6 T 398 5"
-                      stroke="url(#hg)"
-                      strokeWidth="2"
-                      fill="none"
-                      strokeLinecap="round"
-                    />
-                    <defs>
-                      <linearGradient id="hg" x1="0" x2="1">
-                        <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0" />
-                        <stop offset="50%" stopColor="#8B5CF6" />
-                        <stop offset="100%" stopColor="#60A5FA" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
+                <span className="inline-block bg-primary-red text-background px-4 py-2 mt-4 border-4 border-foreground shadow-bauhaus-md transform -skew-x-6">
+                  Production Incidents
                 </span>
               </h1>
             </RevealText>
           </div>
 
           <RevealText delay={0.15}>
-            <p className="max-w-2xl mx-auto text-base sm:text-lg text-text-secondary leading-relaxed mb-10">
+            <p className="max-w-2xl mx-auto text-base sm:text-xl text-foreground font-medium leading-relaxed mb-10 border-l-4 border-primary-blue pl-6 text-left bg-white p-4 border-[3px] shadow-bauhaus-sm">
               Nexus watches your logs, correlates failures against your
               codebase, and ships the fix. Your on-call rotation just got a
               senior engineer that never sleeps.
@@ -267,23 +227,23 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.5 }}
-            className="flex flex-col sm:flex-row gap-3 justify-center items-center"
+            className="flex flex-col sm:flex-row gap-6 justify-center items-center mt-12"
           >
             <Link
               href="/register"
-              className="group w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 text-sm font-medium text-white bg-nexus-primary hover:bg-nexus-hover transition-all rounded-lg shadow-[0_10px_40px_-10px_rgba(139,92,246,0.6)]"
+              className="group w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 text-sm font-bold text-background bg-foreground border-[3px] border-foreground shadow-bauhaus-md hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-none hover:bg-primary-blue transition-all uppercase tracking-widest"
             >
-              Deploy Nexus free
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              Deploy Nexus Free
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
             </Link>
             <Link
               href="#features"
-              className="group w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 text-sm font-medium text-white bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] hover:border-white/20 transition-all rounded-lg backdrop-blur-sm"
+              className="group w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 text-sm font-bold text-foreground bg-background border-[3px] border-foreground shadow-bauhaus-md hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-none hover:bg-primary-yellow transition-all uppercase tracking-widest"
             >
-              <span className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-nexus-primary/30 transition-colors">
-                <span className="block w-0 h-0 border-y-[4px] border-y-transparent border-l-[6px] border-l-white ml-0.5" />
+              <span className="w-6 h-6 border-[2px] border-foreground bg-white flex items-center justify-center group-hover:bg-primary-red transition-colors">
+                <span className="block w-0 h-0 border-y-[5px] border-y-transparent border-l-[8px] border-l-foreground ml-1" />
               </span>
-              Watch 90-sec demo
+              Watch Demo
             </Link>
           </motion.div>
 
@@ -297,27 +257,21 @@ export default function LandingPage() {
           transition={{ duration: 1, delay: 0.6, ease: [0.22, 1, 0.36, 1] }}
           className="relative z-10 mt-20 lg:mt-28 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8"
         >
-          {/* Glow halo */}
-          <div
-            aria-hidden="true"
-            className="absolute -inset-x-10 -top-10 h-[60%] bg-gradient-to-b from-nexus-primary/30 via-blue-500/10 to-transparent blur-3xl opacity-60"
-          />
-
-          <div className="relative rounded-2xl p-px bg-gradient-to-b from-white/20 via-white/5 to-transparent shadow-[0_40px_120px_-20px_rgba(139,92,246,0.35)]">
-            <div className="rounded-[15px] bg-[#0A0A0F]/95 backdrop-blur-2xl overflow-hidden border border-white/5">
+          <div className="relative bg-background border-4 border-foreground shadow-bauhaus-lg">
+            <div className="bg-white overflow-hidden border-foreground">
               {/* Browser chrome */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-white/[0.02]">
-                <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-white/15" />
-                  <div className="w-3 h-3 rounded-full bg-white/15" />
-                  <div className="w-3 h-3 rounded-full bg-white/15" />
+              <div className="flex items-center justify-between px-4 py-3 border-b-4 border-foreground bg-primary-yellow">
+                <div className="flex gap-2">
+                  <div className="w-4 h-4 bg-foreground" />
+                  <div className="w-4 h-4 bg-foreground" />
+                  <div className="w-4 h-4 bg-foreground" />
                 </div>
-                <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-md bg-white/[0.04] border border-white/5 text-[11px] text-text-muted font-mono">
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-white border-2 border-foreground text-[11px] font-bold text-foreground font-mono uppercase tracking-wider">
                   <Lock className="w-3 h-3" />
                   app.nexusops.io/incidents
                 </div>
-                <span className="text-[10px] text-emerald-400 font-mono inline-flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[10px] text-foreground font-bold font-mono inline-flex items-center gap-1.5 uppercase tracking-widest border-2 border-foreground bg-white px-2 py-1">
+                  <span className="w-2 h-2 bg-primary-red animate-pulse border border-foreground" />
                   LIVE
                 </span>
               </div>
@@ -325,7 +279,7 @@ export default function LandingPage() {
               {/* Dashboard body */}
               <div className="grid grid-cols-12 gap-0 min-h-[380px] lg:min-h-[460px]">
                 {/* Sidebar */}
-                <aside className="hidden md:flex col-span-2 flex-col gap-1 p-4 border-r border-white/5 bg-white/[0.015]">
+                <aside className="hidden md:flex col-span-2 flex-col gap-2 p-4 border-r-4 border-foreground bg-background">
                   {[
                     { label: "Overview", active: false },
                     { label: "Incidents", active: true },
@@ -335,10 +289,10 @@ export default function LandingPage() {
                   ].map((i) => (
                     <div
                       key={i.label}
-                      className={`text-[11px] px-2.5 py-1.5 rounded-md ${
+                      className={`text-[11px] px-3 py-2 font-bold uppercase tracking-wider border-2 ${
                         i.active
-                          ? "bg-nexus-primary/15 text-white border border-nexus-primary/30"
-                          : "text-text-muted"
+                          ? "bg-foreground text-background border-foreground"
+                          : "text-foreground border-transparent hover:border-foreground hover:bg-white"
                       }`}
                     >
                       {i.label}
@@ -349,24 +303,24 @@ export default function LandingPage() {
                 {/* Main panel */}
                 <div className="col-span-12 md:col-span-10 p-5 lg:p-7 flex flex-col gap-5">
                   {/* KPI row */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     {[
-                      { k: "Open incidents", v: "3", sub: "-2 vs yesterday", tone: "text-emerald-400" },
-                      { k: "Auto-resolved", v: "47", sub: "+12% this week", tone: "text-nexus-primary" },
-                      { k: "MTTR", v: "4m 12s", sub: "-38% MoM", tone: "text-emerald-400" },
-                      { k: "PRs shipped", v: "128", sub: "18 today", tone: "text-blue-400" },
+                      { k: "Open incidents", v: "3", sub: "-2 vs yesterday", tone: "bg-primary-yellow" },
+                      { k: "Auto-resolved", v: "47", sub: "+12% this week", tone: "bg-primary-red" },
+                      { k: "MTTR", v: "4m 12s", sub: "-38% MoM", tone: "bg-primary-blue" },
+                      { k: "PRs shipped", v: "128", sub: "18 today", tone: "bg-white" },
                     ].map((m) => (
                       <div
                         key={m.k}
-                        className="rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2.5"
+                        className={`border-[3px] border-foreground shadow-bauhaus-sm px-4 py-3 ${m.tone}`}
                       >
-                        <div className="text-[10px] uppercase tracking-wider text-text-muted">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-foreground">
                           {m.k}
                         </div>
-                        <div className="text-xl font-semibold text-white mt-0.5">
+                        <div className="text-2xl font-black text-foreground mt-1">
                           {m.v}
                         </div>
-                        <div className={`text-[10px] mt-0.5 ${m.tone}`}>
+                        <div className="text-[10px] font-bold uppercase tracking-widest mt-1 text-foreground border-t-2 border-foreground pt-1">
                           {m.sub}
                         </div>
                       </div>
@@ -374,27 +328,27 @@ export default function LandingPage() {
                   </div>
 
                   {/* Incidents table */}
-                  <div className="rounded-lg border border-white/5 bg-white/[0.02] overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
+                  <div className="border-[3px] border-foreground bg-white overflow-hidden shadow-bauhaus-md">
+                    <div className="flex items-center justify-between px-4 py-3 border-b-[3px] border-foreground bg-background">
                       <div className="flex items-center gap-2">
-                        <Activity className="w-3.5 h-3.5 text-nexus-primary" />
-                        <span className="text-xs font-medium text-white">
+                        <Activity className="w-4 h-4 text-foreground" />
+                        <span className="text-xs font-bold uppercase tracking-widest text-foreground">
                           Recent incidents
                         </span>
                       </div>
-                      <span className="text-[10px] text-text-muted font-mono">
+                      <span className="text-[10px] text-foreground font-bold font-mono uppercase tracking-widest">
                         auto-refresh · 5s
                       </span>
                     </div>
-                    <div className="divide-y divide-white/5">
+                    <div className="divide-y-[3px] divide-foreground">
                       {[
                         {
                           id: "INC-4821",
                           title: "Prisma query timeout on /users/:id",
                           sev: "P1",
-                          sevClr: "bg-red-500/15 text-red-400 border-red-500/30",
+                          sevClr: "bg-primary-red text-white",
                           status: "AutoFix running",
-                          statusClr: "text-nexus-primary",
+                          statusClr: "text-foreground font-bold uppercase",
                           time: "12s ago",
                           highlight: true,
                         },
@@ -402,27 +356,27 @@ export default function LandingPage() {
                           id: "INC-4820",
                           title: "OOM on worker-queue-3",
                           sev: "P2",
-                          sevClr: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+                          sevClr: "bg-primary-yellow text-foreground",
                           status: "PR #4819 merged",
-                          statusClr: "text-emerald-400",
+                          statusClr: "text-foreground font-bold uppercase",
                           time: "4m ago",
                         },
                         {
                           id: "INC-4817",
                           title: "429 spike from Stripe webhook",
                           sev: "P3",
-                          sevClr: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
+                          sevClr: "bg-primary-blue text-white",
                           status: "Resolved",
-                          statusClr: "text-text-muted",
+                          statusClr: "text-foreground font-bold uppercase",
                           time: "22m ago",
                         },
                         {
                           id: "INC-4812",
                           title: "Cache stampede — redis/session",
                           sev: "P2",
-                          sevClr: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+                          sevClr: "bg-primary-yellow text-foreground",
                           status: "Resolved",
-                          statusClr: "text-text-muted",
+                          statusClr: "text-foreground font-bold uppercase",
                           time: "1h ago",
                         },
                       ].map((row, idx) => (
@@ -431,30 +385,30 @@ export default function LandingPage() {
                           initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: 0.9 + idx * 0.08 }}
-                          className={`flex items-center gap-4 px-4 py-3 text-[12px] ${
-                            row.highlight ? "bg-nexus-primary/[0.04]" : ""
+                          className={`flex items-center gap-4 px-4 py-3 text-[12px] font-bold ${
+                            row.highlight ? "bg-primary-yellow/20" : ""
                           }`}
                         >
-                          <span className="font-mono text-text-muted w-16 shrink-0">
+                          <span className="font-mono text-foreground w-16 shrink-0 uppercase">
                             {row.id}
                           </span>
                           <span
-                            className={`shrink-0 px-1.5 py-0.5 rounded border text-[10px] font-semibold ${row.sevClr}`}
+                            className={`shrink-0 px-2 py-1 border-2 border-foreground text-[10px] font-black tracking-wider ${row.sevClr}`}
                           >
                             {row.sev}
                           </span>
-                          <span className="flex-1 text-white/90 truncate">
+                          <span className="flex-1 text-foreground truncate uppercase tracking-tight">
                             {row.title}
                           </span>
                           <span
                             className={`hidden sm:inline-flex items-center gap-1.5 text-[11px] ${row.statusClr}`}
                           >
                             {row.highlight && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-nexus-primary animate-pulse" />
+                              <span className="w-2 h-2 bg-primary-red border border-foreground animate-pulse" />
                             )}
                             {row.status}
                           </span>
-                          <span className="hidden lg:block text-[11px] text-text-muted w-16 text-right shrink-0 font-mono">
+                          <span className="hidden lg:block text-[11px] text-foreground font-black w-16 text-right shrink-0 font-mono uppercase">
                             {row.time}
                           </span>
                         </motion.div>
@@ -471,27 +425,27 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ delay: 1.6, duration: 0.6 }}
-            className="absolute -bottom-6 right-8 lg:right-16 hidden sm:flex items-center gap-3 px-4 py-3 rounded-xl bg-[#0A0A0F] border border-nexus-primary/30 shadow-[0_20px_60px_-10px_rgba(139,92,246,0.5)]"
+            className="absolute -bottom-6 right-8 lg:right-16 hidden sm:flex items-center gap-4 px-5 py-4 bg-white border-4 border-foreground shadow-bauhaus-md"
           >
-            <div className="w-8 h-8 rounded-lg bg-nexus-primary/15 flex items-center justify-center">
-              <GitBranch className="w-4 h-4 text-nexus-primary" />
+            <div className="w-10 h-10 border-[3px] border-foreground bg-primary-blue flex items-center justify-center">
+              <GitBranch className="w-5 h-5 text-white" />
             </div>
             <div>
-              <div className="text-xs font-medium text-white">
+              <div className="text-xs font-black text-foreground uppercase tracking-wider">
                 PR #4821 opened
               </div>
-              <div className="text-[10px] text-text-muted">
+              <div className="text-[10px] font-bold text-foreground border-t-2 border-foreground mt-1 pt-1">
                 fix: handle prisma timeout on user lookup
               </div>
             </div>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-2" />
+            <span className="w-2 h-2 bg-primary-yellow border border-foreground animate-pulse ml-2" />
           </motion.div>
         </motion.div>
       </section>
 
       {/* ============ LOGO MARQUEE ============ */}
-      <section className="relative z-10 border-y border-white/5 bg-bg-base/50 backdrop-blur-sm py-10 overflow-hidden">
-        <p className="text-center text-[11px] uppercase tracking-[0.3em] text-text-muted mb-6">
+      <section className="relative z-10 border-b-4 border-foreground bg-white py-10 overflow-hidden">
+        <p className="text-center text-[12px] font-black uppercase tracking-[0.3em] text-foreground mb-6">
           Trusted by engineering teams that ship at scale
         </p>
         <div className="relative" aria-hidden="true">
@@ -499,14 +453,14 @@ export default function LandingPage() {
             {[...logos, ...logos, ...logos].map((l, i) => (
               <span
                 key={i}
-                className="text-2xl font-semibold tracking-[0.25em] text-white/30 hover:text-white/60 transition-colors"
+                className="text-2xl font-black tracking-[0.25em] text-foreground opacity-50 hover:opacity-100 transition-opacity"
               >
                 {l}
               </span>
             ))}
           </div>
-          <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-bg-base to-transparent pointer-events-none" />
-          <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-bg-base to-transparent pointer-events-none" />
+          <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-white to-transparent pointer-events-none" />
+          <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-white to-transparent pointer-events-none" />
         </div>
         <style jsx>{`
           @keyframes scroll {
@@ -521,9 +475,9 @@ export default function LandingPage() {
       </section>
 
       {/* ============ METRICS ============ */}
-      <section className="relative z-10 py-24 border-b border-white/5">
+      <section className="relative z-10 py-24 border-b-4 border-foreground bg-primary-blue">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-white/5 border border-white/5 rounded-2xl overflow-hidden">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-[4px] bg-foreground border-4 border-foreground shadow-bauhaus-lg">
             {metrics.map((m, i) => (
               <motion.div
                 key={m.label}
@@ -531,12 +485,12 @@ export default function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1, duration: 0.6 }}
-                className="bg-bg-base p-8 lg:p-10 hover:bg-white/[0.02] transition-colors group"
+                className="bg-background p-8 lg:p-10 hover:bg-primary-yellow transition-colors group flex flex-col justify-center items-center text-center"
               >
-                <div className="text-4xl lg:text-5xl font-semibold bg-clip-text text-transparent bg-gradient-to-br from-white to-nexus-primary tracking-tight mb-2">
+                <div className="text-4xl lg:text-5xl font-black text-foreground tracking-tight mb-3">
                   {m.value}
                 </div>
-                <div className="text-xs uppercase tracking-widest text-text-muted group-hover:text-text-secondary transition-colors">
+                <div className="text-xs font-bold uppercase tracking-widest text-foreground">
                   {m.label}
                 </div>
               </motion.div>
@@ -548,7 +502,7 @@ export default function LandingPage() {
       {/* ============ FEATURES (Bento) ============ */}
       <div
         id="features"
-        className="py-32 bg-bg-base relative z-10 border-b border-white/5"
+        className="py-32 bg-primary-yellow relative z-10 border-b-4 border-foreground"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
@@ -558,21 +512,21 @@ export default function LandingPage() {
             transition={{ duration: 0.6 }}
             className="max-w-3xl mb-20"
           >
-            <span className="inline-block text-[11px] uppercase tracking-[0.3em] text-nexus-primary mb-4">
+            <span className="inline-block text-[13px] font-bold uppercase tracking-[0.2em] text-foreground mb-4 border-2 border-foreground px-3 py-1 bg-background shadow-bauhaus-sm">
               Platform
             </span>
-            <h2 className="text-4xl lg:text-5xl font-semibold text-white tracking-[-0.02em] mb-5">
+            <h2 className="text-4xl lg:text-5xl font-black text-foreground uppercase tracking-tight mb-5">
               Every capability a staff SRE
               <br />
-              <span className="text-text-secondary">wished they had.</span>
+              <span className="text-foreground">wished they had.</span>
             </h2>
-            <p className="text-base text-text-secondary leading-relaxed max-w-xl">
+            <p className="text-base text-foreground font-medium leading-relaxed max-w-xl">
               A focused surface of tools that compound. Nexus is opinionated
               where it matters, and invisible where it shouldn&apos;t.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-6">
             {features.map((feature, index) => (
               <motion.div
                 key={feature.name}
@@ -585,35 +539,31 @@ export default function LandingPage() {
                   ease: [0.33, 1, 0.68, 1],
                 }}
                 className={`
-                  rounded-2xl p-px bg-gradient-to-b from-white/10 to-white/[0.02] hover:from-nexus-primary/40 hover:to-transparent transition-all duration-500 group
+                  bg-background border-4 border-foreground shadow-bauhaus-md flex flex-col group transition-transform hover:-translate-y-1 hover:shadow-bauhaus-lg
                   ${feature.size === "lg" ? "md:col-span-6 lg:col-span-8" : ""}
                   ${feature.size === "md" ? "md:col-span-3 lg:col-span-4" : ""}
                   ${feature.size === "sm" ? "md:col-span-3 lg:col-span-4" : ""}
                 `}
               >
-                <div className="relative h-full rounded-[15px] bg-bg-surface overflow-hidden flex flex-col">
-                  <div className="absolute inset-0 bg-gradient-to-b from-nexus-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-                  <div className="relative z-10 flex flex-col h-full p-6">
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="w-11 h-11 rounded-xl border border-white/10 flex items-center justify-center bg-white/[0.03] group-hover:border-nexus-primary/40 group-hover:bg-nexus-primary/10 transition-all duration-300">
-                        <feature.icon className="w-[18px] h-[18px] text-nexus-primary/90 group-hover:text-nexus-primary transition-colors" />
-                      </div>
-                      <span className="text-text-muted font-mono text-[10px] tracking-widest opacity-50 group-hover:opacity-100 transition-opacity">
-                        /{String(index + 1).padStart(2, "0")}
-                      </span>
+                <div className="relative flex flex-col h-full p-6">
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="w-12 h-12 border-4 border-foreground bg-primary-blue flex items-center justify-center shadow-bauhaus-sm group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform">
+                      <feature.icon className="w-6 h-6 text-foreground" />
                     </div>
+                    <span className="text-foreground font-black font-mono text-xs tracking-widest">
+                      /{String(index + 1).padStart(2, "0")}
+                    </span>
+                  </div>
 
-                    <h3 className="text-lg font-semibold text-white mb-2 tracking-tight">
-                      {feature.name}
-                    </h3>
-                    <p className="text-sm text-text-secondary leading-relaxed mb-6 max-w-md">
-                      {feature.description}
-                    </p>
+                  <h3 className="text-xl font-black text-foreground uppercase tracking-tight mb-2">
+                    {feature.name}
+                  </h3>
+                  <p className="text-sm font-medium text-foreground leading-relaxed mb-6 max-w-md">
+                    {feature.description}
+                  </p>
 
-                    <div className="mt-auto flex-1 rounded-lg overflow-hidden border border-white/5 bg-black/30 min-h-[180px]">
-                      <feature.component />
-                    </div>
+                  <div className="mt-auto flex-1 border-4 border-foreground bg-background min-h-[180px] flex flex-col relative overflow-hidden">
+                    <feature.component />
                   </div>
                 </div>
               </motion.div>
@@ -623,20 +573,19 @@ export default function LandingPage() {
       </div>
 
       {/* ============ WORKFLOW ============ */}
-      <section className="relative z-10 py-32 border-b border-white/5 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-nexus-primary/5 via-transparent to-transparent pointer-events-none" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+      <section className="relative z-10 py-32 border-b-4 border-foreground bg-primary-red overflow-hidden bauhaus-pattern-dots">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative bg-background border-4 border-foreground shadow-bauhaus-lg p-10 lg:p-16">
           <div className="text-center mb-20">
-            <span className="inline-block text-[11px] uppercase tracking-[0.3em] text-nexus-primary mb-4">
+            <span className="inline-block text-[13px] font-bold uppercase tracking-[0.2em] text-foreground mb-4 border-2 border-foreground px-3 py-1 bg-primary-yellow shadow-bauhaus-sm">
               How it works
             </span>
-            <h2 className="text-4xl lg:text-5xl font-semibold text-white tracking-[-0.02em]">
+            <h2 className="text-4xl lg:text-5xl font-black text-foreground uppercase tracking-tight">
               From alert to merged PR in under 5 minutes.
             </h2>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 relative">
-            <div className="hidden md:block absolute top-[72px] left-[16%] right-[16%] h-px bg-gradient-to-r from-transparent via-nexus-primary/40 to-transparent" />
+            <div className="hidden md:block absolute top-[44px] left-[16%] right-[16%] h-1 bg-foreground" />
             {workflow.map((w, i) => (
               <motion.div
                 key={w.step}
@@ -644,20 +593,20 @@ export default function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.15, duration: 0.6 }}
-                className="relative p-8 rounded-2xl bg-bg-surface border border-white/5 hover:border-nexus-primary/30 transition-colors"
+                className="relative p-8 bg-background border-4 border-foreground shadow-bauhaus-md z-10"
               >
                 <div className="flex items-center gap-4 mb-5">
-                  <div className="relative w-11 h-11 rounded-xl bg-nexus-primary/10 border border-nexus-primary/20 flex items-center justify-center">
-                    <w.icon className="w-[18px] h-[18px] text-nexus-primary" />
+                  <div className="relative w-12 h-12 bg-primary-blue border-4 border-foreground shadow-bauhaus-sm flex items-center justify-center">
+                    <w.icon className="w-6 h-6 text-foreground" />
                   </div>
-                  <span className="font-mono text-xs tracking-widest text-nexus-primary/80">
+                  <span className="font-mono font-bold text-xs tracking-widest text-foreground uppercase">
                     STEP {w.step}
                   </span>
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-3">
+                <h3 className="text-xl font-black uppercase text-foreground mb-3">
                   {w.title}
                 </h3>
-                <p className="text-sm text-text-secondary leading-relaxed">
+                <p className="text-sm font-medium text-foreground leading-relaxed">
                   {w.body}
                 </p>
               </motion.div>
@@ -667,22 +616,18 @@ export default function LandingPage() {
       </section>
 
       {/* ============ LIVE OPS THEATER — unique widgets ============ */}
-      <section className="relative z-10 py-32 border-b border-white/5 overflow-hidden">
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(139,92,246,0.08),transparent_60%)] pointer-events-none"
-        />
+      <section className="relative z-10 py-32 border-b-4 border-foreground bg-primary-blue overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="text-center mb-16">
-            <span className="inline-block text-[11px] uppercase tracking-[0.3em] text-nexus-primary mb-4">
+            <span className="inline-block text-[13px] font-bold uppercase tracking-[0.2em] text-foreground mb-4 border-2 border-foreground px-3 py-1 bg-background shadow-bauhaus-sm">
               Live Ops Theater
             </span>
-            <h2 className="text-4xl lg:text-5xl font-semibold text-white tracking-[-0.02em]">
+            <h2 className="text-4xl lg:text-5xl font-black text-foreground uppercase tracking-tight">
               Watch Nexus think in real time.
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <SignalMeshWidget />
             <IncidentHeatwaveWidget />
             <PatchVelocityWidget />
@@ -691,7 +636,7 @@ export default function LandingPage() {
       </section>
 
       {/* ============ SECURITY BAND ============ */}
-      <section className="relative z-10 py-24 border-b border-white/5">
+      <section className="relative z-10 py-24 border-b-4 border-foreground bg-background">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 grid md:grid-cols-3 gap-10">
           {[
             {
@@ -716,14 +661,14 @@ export default function LandingPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="flex gap-4"
+              className="flex gap-4 p-6 border-4 border-foreground shadow-bauhaus-sm bg-primary-yellow hover:-translate-y-1 hover:shadow-bauhaus-md transition-all"
             >
-              <div className="shrink-0 w-10 h-10 rounded-lg bg-nexus-primary/10 border border-nexus-primary/20 flex items-center justify-center">
-                <s.icon className="w-[18px] h-[18px] text-nexus-primary" />
+              <div className="shrink-0 w-12 h-12 bg-background border-4 border-foreground flex items-center justify-center shadow-[2px_2px_0px_0px_#121212]">
+                <s.icon className="w-6 h-6 text-foreground" />
               </div>
               <div>
-                <h4 className="text-white font-medium mb-1.5">{s.title}</h4>
-                <p className="text-sm text-text-secondary leading-relaxed">
+                <h4 className="text-foreground font-black uppercase mb-1.5">{s.title}</h4>
+                <p className="text-sm font-medium text-foreground leading-relaxed">
                   {s.body}
                 </p>
               </div>
@@ -735,18 +680,17 @@ export default function LandingPage() {
       {/* ============ FAQ ============ */}
       <section
         id="faq"
-        className="py-32 relative z-10 border-b border-white/5 bg-bg-base overflow-hidden"
+        className="py-32 relative z-10 border-b-4 border-foreground bg-background overflow-hidden bauhaus-pattern-dots"
       >
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-nexus-primary/5 via-transparent to-transparent z-0 pointer-events-none" />
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 relative z-10 grid md:grid-cols-[1fr_2fr] gap-16">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 relative z-10 grid md:grid-cols-[1fr_2fr] gap-16 bg-primary-yellow border-4 border-foreground shadow-bauhaus-lg p-12">
           <div>
-            <span className="inline-block text-[11px] uppercase tracking-[0.3em] text-nexus-primary mb-4">
+            <span className="inline-block text-[13px] font-bold uppercase tracking-[0.2em] text-foreground mb-4 border-2 border-foreground px-3 py-1 bg-background shadow-bauhaus-sm">
               FAQ
             </span>
-            <h2 className="text-3xl lg:text-4xl font-semibold text-white tracking-[-0.02em] mb-4">
+            <h2 className="text-3xl lg:text-4xl font-black uppercase text-foreground tracking-tight mb-4">
               Answers before you ask.
             </h2>
-            <p className="text-sm text-text-secondary leading-relaxed">
+            <p className="text-sm font-medium text-foreground leading-relaxed">
               Still curious? Our team is in your Slack the moment you start a
               trial.
             </p>
@@ -757,12 +701,12 @@ export default function LandingPage() {
               <AccordionItem
                 key={i}
                 value={`item-${i}`}
-                className="border-white/10 border-b"
+                className="border-foreground border-b-4 last:border-b-0"
               >
-                <AccordionTrigger className="text-left text-white hover:text-nexus-primary hover:no-underline transition-colors py-5 text-base">
+                <AccordionTrigger className="text-left text-foreground font-black uppercase hover:bg-foreground hover:text-background transition-colors py-5 px-4 text-base data-[state=open]:bg-foreground data-[state=open]:text-background">
                   {faq.question}
                 </AccordionTrigger>
-                <AccordionContent className="text-text-secondary leading-relaxed pt-1 pb-6 text-sm">
+                <AccordionContent className="text-foreground font-medium leading-relaxed p-4 text-sm bg-background border-t-4 border-foreground">
                   {faq.answer}
                 </AccordionContent>
               </AccordionItem>
@@ -772,36 +716,35 @@ export default function LandingPage() {
       </section>
 
       {/* ============ FINAL CTA ============ */}
-      <section className="relative z-10 py-32 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-nexus-primary/20 via-transparent to-transparent pointer-events-none" />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
+      <section className="relative z-10 py-32 overflow-hidden bg-primary-blue border-b-4 border-foreground">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative bg-background border-4 border-foreground shadow-bauhaus-lg p-16">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.7 }}
-            className="text-4xl lg:text-6xl font-semibold text-white tracking-[-0.02em] mb-6"
+            className="text-4xl lg:text-6xl font-black uppercase text-foreground tracking-tight mb-6"
           >
             Stop babysitting{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-nexus-primary to-blue-400">
+            <span className="text-primary-red">
               production.
             </span>
           </motion.h2>
-          <p className="text-lg text-text-secondary mb-10 max-w-xl mx-auto">
+          <p className="text-lg font-medium text-foreground mb-10 max-w-xl mx-auto">
             Give your on-call rotation back their weekends. 14 days free, no
             credit card required.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/register"
-              className="group inline-flex items-center justify-center gap-2 px-8 py-4 text-sm font-medium text-white bg-nexus-primary hover:bg-nexus-hover transition-all rounded-lg shadow-[0_8px_40px_rgba(139,92,246,0.45)]"
+              className="group inline-flex items-center justify-center gap-2 px-8 py-4 text-sm font-black uppercase text-background bg-foreground border-4 border-foreground hover:-translate-y-1 hover:translate-x-1 hover:shadow-[-4px_4px_0px_0px_#FFD100] transition-all"
             >
               Deploy Nexus
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
               href="/contact"
-              className="inline-flex items-center justify-center px-8 py-4 text-sm font-medium text-white bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] transition-all rounded-lg"
+              className="inline-flex items-center justify-center px-8 py-4 text-sm font-black uppercase text-foreground bg-background border-4 border-foreground hover:bg-primary-yellow hover:-translate-y-1 hover:translate-x-1 hover:shadow-[-4px_4px_0px_0px_#121212] transition-all"
             >
               Talk to an engineer
             </Link>
@@ -830,28 +773,22 @@ function WidgetShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative rounded-2xl p-px bg-gradient-to-b from-white/15 via-white/[0.04] to-transparent hover:from-nexus-primary/50 transition-all duration-500 group">
-      <div className="relative h-full rounded-[15px] bg-[#0A0A0F]/90 backdrop-blur-xl border border-white/5 overflow-hidden">
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 bg-gradient-to-b from-nexus-primary/[0.06] via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-        />
-        <div className="relative p-5 flex flex-col h-full min-h-[340px]">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-nexus-primary/80">
-              {label}
-            </span>
-            <span className="text-[10px] text-emerald-400 font-mono inline-flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              streaming
-            </span>
-          </div>
-          <h3 className="text-lg font-semibold text-white tracking-tight mb-1">
-            {title}
-          </h3>
-          <p className="text-xs text-text-secondary mb-5">{subtitle}</p>
-          <div className="flex-1 relative">{children}</div>
+    <div className="bg-background border-4 border-foreground shadow-bauhaus-md flex flex-col h-full group transition-transform hover:-translate-y-1 hover:shadow-bauhaus-lg">
+      <div className="p-5 flex flex-col h-full min-h-[340px]">
+        <div className="flex items-center justify-between mb-4 border-b-4 border-foreground pb-3">
+          <span className="text-[12px] font-black uppercase text-foreground tracking-[0.1em] bg-primary-yellow px-2 py-1 border-2 border-foreground">
+            {label}
+          </span>
+          <span className="text-[10px] text-background bg-foreground font-bold uppercase px-2 py-1 inline-flex items-center gap-1.5 border-2 border-foreground">
+            <span className="w-2 h-2 bg-primary-red border-2 border-background animate-pulse" />
+            streaming
+          </span>
         </div>
+        <h3 className="text-2xl font-black uppercase text-foreground tracking-tight mb-2">
+          {title}
+        </h3>
+        <p className="text-sm font-medium text-foreground mb-6">{subtitle}</p>
+        <div className="flex-1 relative border-4 border-foreground bg-background flex flex-col">{children}</div>
       </div>
     </div>
   );
@@ -880,91 +817,83 @@ function SignalMeshWidget() {
 
   return (
     <WidgetShell
-      label="WIDGET_01 / MESH"
+      label="W01/MESH"
       title="Signal Mesh"
       subtitle="Live service topology — packet-level trace."
     >
-      <svg viewBox="0 0 360 260" className="w-full h-full">
-        <defs>
-          <radialGradient id="nodeGlow">
-            <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.8" />
-            <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0" />
-          </radialGradient>
-          <linearGradient id="edgeGrad" x1="0" x2="1">
-            <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.1" />
-            <stop offset="50%" stopColor="#8B5CF6" stopOpacity="0.6" />
-            <stop offset="100%" stopColor="#60A5FA" stopOpacity="0.1" />
-          </linearGradient>
-        </defs>
+      <div className="w-full h-full bg-background relative flex-1 flex flex-col">
+        <svg viewBox="0 0 360 260" className="w-full h-full absolute inset-0">
+          {/* Edges */}
+          {edges.map(([a, b], i) => {
+            const na = pos[a];
+            const nb = pos[b];
+            return (
+              <g key={`${a}-${b}`}>
+                <line
+                  x1={na.x}
+                  y1={na.y}
+                  x2={nb.x}
+                  y2={nb.y}
+                  stroke="#121212"
+                  strokeWidth="3"
+                />
+                <motion.rect
+                  width="10"
+                  height="10"
+                  fill="#FF3366"
+                  stroke="#121212"
+                  strokeWidth="2"
+                  initial={{ x: na.x - 5, y: na.y - 5, opacity: 0 }}
+                  animate={{
+                    x: [na.x - 5, nb.x - 5],
+                    y: [na.y - 5, nb.y - 5],
+                    opacity: [0, 1, 0],
+                  }}
+                  transition={{
+                    duration: 1.8,
+                    repeat: Infinity,
+                    delay: i * 0.35,
+                    ease: "linear",
+                  }}
+                />
+              </g>
+            );
+          })}
 
-        {/* Edges */}
-        {edges.map(([a, b], i) => {
-          const na = pos[a];
-          const nb = pos[b];
-          return (
-            <g key={`${a}-${b}`}>
-              <line
-                x1={na.x}
-                y1={na.y}
-                x2={nb.x}
-                y2={nb.y}
-                stroke="rgba(255,255,255,0.08)"
-                strokeWidth="1"
-              />
-              <motion.circle
-                r="2.5"
-                fill="#8B5CF6"
-                initial={{ cx: na.x, cy: na.y, opacity: 0 }}
-                animate={{
-                  cx: [na.x, nb.x],
-                  cy: [na.y, nb.y],
-                  opacity: [0, 1, 0],
-                }}
+          {/* Nodes */}
+          {nodes.map((n, i) => (
+            <g key={n.id}>
+              <rect x={n.x - 18} y={n.y - 18} width="36" height="36" fill="#FFD100" stroke="#121212" strokeWidth="3" />
+              <motion.rect
+                x={n.x - 6}
+                y={n.y - 6}
+                width="12"
+                height="12"
+                fill="#121212"
+                animate={{ scale: [1, 1.5, 1] }}
                 transition={{
-                  duration: 1.8,
+                  duration: 2,
                   repeat: Infinity,
-                  delay: i * 0.35,
-                  ease: "linear",
+                  delay: i * 0.2,
                 }}
+                style={{ transformOrigin: `${n.x}px ${n.y}px` }}
               />
+              <text
+                x={n.x}
+                y={n.y + 32}
+                textAnchor="middle"
+                className="fill-foreground font-black text-[10px] uppercase"
+              >
+                {n.label}
+              </text>
             </g>
-          );
-        })}
-
-        {/* Nodes */}
-        {nodes.map((n, i) => (
-          <g key={n.id}>
-            <circle cx={n.x} cy={n.y} r="22" fill="url(#nodeGlow)" opacity="0.4" />
-            <motion.circle
-              cx={n.x}
-              cy={n.y}
-              r="7"
-              fill="#0A0A0F"
-              stroke="#8B5CF6"
-              strokeWidth="1.5"
-              animate={{ scale: [1, 1.25, 1] }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                delay: i * 0.2,
-              }}
-              style={{ transformOrigin: `${n.x}px ${n.y}px` }}
-            />
-            <text
-              x={n.x}
-              y={n.y + 22}
-              textAnchor="middle"
-              className="fill-white/60 text-[9px] font-mono tracking-wider"
-            >
-              {n.label}
-            </text>
-          </g>
-        ))}
-      </svg>
-      <div className="absolute bottom-0 left-0 right-0 flex justify-between text-[10px] font-mono text-text-muted border-t border-white/5 pt-3">
-        <span>6 services</span>
-        <span className="text-emerald-400">0 anomalies</span>
-        <span>p99 · 42ms</span>
+          ))}
+        </svg>
+        <div className="absolute bottom-0 left-0 right-0 flex justify-between text-[11px] font-bold font-mono text-foreground border-t-4 border-foreground bg-primary-blue p-2">
+          <span>6 nodes</span>
+          <span className="text-background bg-foreground px-1">0 err</span>
+          <span>42ms</span>
+        </div>
       </div>
     </WidgetShell>
   );
@@ -990,72 +919,73 @@ function IncidentHeatwaveWidget() {
 
   return (
     <WidgetShell
-      label="WIDGET_02 / HEAT"
+      label="W02/HEAT"
       title="Incident Heatwave"
       subtitle="Severity by service × time — last 7 days."
     >
-      <div
-        className="grid gap-[3px]"
-        style={{
-          gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-        }}
-      >
-        {cells.map((_, i) => {
-          const isHot = hotMap.has(i);
-          const delay = hotMap.get(i) ?? 0;
-          const base = !mounted ? 0.06 : (Math.random() > 0.82 ? 0.18 : 0.06);
-          return (
-            <motion.div
-              key={i}
-              className="aspect-square rounded-[2px]"
-              style={{ background: `rgba(139,92,246,${base})` }}
-              animate={
-                isHot
-                  ? {
-                      backgroundColor: [
-                        "rgba(239,68,68,0.15)",
-                        "rgba(239,68,68,0.9)",
-                        "rgba(139,92,246,0.3)",
-                        "rgba(139,92,246,0.08)",
-                      ],
-                      scale: [1, 1.15, 1, 1],
-                    }
-                  : {}
-              }
-              transition={
-                isHot
-                  ? { duration: 3, repeat: Infinity, delay }
-                  : {}
-              }
-            />
-          );
-        })}
-      </div>
-
-      <div className="mt-5 space-y-2">
-        {[
-          { label: "auth-svc", val: 92, tone: "bg-red-500/70" },
-          { label: "orders-api", val: 64, tone: "bg-orange-500/70" },
-          { label: "billing", val: 38, tone: "bg-nexus-primary/70" },
-        ].map((r, i) => (
-          <div key={r.label} className="flex items-center gap-3">
-            <span className="text-[10px] font-mono text-text-muted w-16 shrink-0">
-              {r.label}
-            </span>
-            <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+      <div className="p-3 bg-background flex flex-col h-full">
+        <div
+          className="grid gap-1 flex-1"
+          style={{
+            gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+          }}
+        >
+          {cells.map((_, i) => {
+            const isHot = hotMap.has(i);
+            const delay = hotMap.get(i) ?? 0;
+            return (
               <motion.div
-                className={`h-full ${r.tone}`}
-                initial={{ width: 0 }}
-                whileInView={{ width: `${r.val}%` }}
-                viewport={{ once: true }}
-                transition={{ duration: 1.2, delay: i * 0.2, ease: "easeOut" }}
+                key={i}
+                className="border-2 border-foreground"
+                style={{ background: "#F0F0F0" }}
+                animate={
+                  isHot
+                    ? {
+                        backgroundColor: [
+                          "#FFD100",
+                          "#FF3366",
+                          "#FFD100",
+                        ],
+                      }
+                    : mounted && Math.random() > 0.85
+                    ? { backgroundColor: "#0055FF" }
+                    : {}
+                }
+                transition={
+                  isHot
+                    ? { duration: 1.5, repeat: Infinity, delay }
+                    : {}
+                }
               />
+            );
+          })}
+        </div>
+
+        <div className="mt-4 space-y-2 border-t-4 border-foreground pt-3">
+          {[
+            { label: "auth-svc", val: 92, tone: "bg-primary-red" },
+            { label: "orders-api", val: 64, tone: "bg-primary-yellow" },
+            { label: "billing", val: 38, tone: "bg-primary-blue" },
+          ].map((r, i) => (
+            <div key={r.label} className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase font-mono text-foreground w-16 shrink-0">
+                {r.label}
+              </span>
+              <div className="flex-1 h-3 border-2 border-foreground bg-background overflow-hidden relative">
+                <motion.div
+                  className={`absolute left-0 top-0 bottom-0 border-r-2 border-foreground ${r.tone}`}
+                  initial={{ width: 0 }}
+                  whileInView={{ width: `${r.val}%` }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 1.2, delay: i * 0.2, ease: "easeOut" }}
+                />
+              </div>
+              <span className="text-[10px] font-black font-mono text-foreground w-8 text-right">
+                {r.val}
+              </span>
             </div>
-            <span className="text-[10px] font-mono text-white/70 w-8 text-right">
-              {r.val}
-            </span>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </WidgetShell>
   );
@@ -1073,7 +1003,7 @@ function PatchVelocityWidget() {
     { time: "00:12", msg: "PR #4821 · prisma timeout", ok: true },
     { time: "00:38", msg: "PR #4819 · OOM worker-3", ok: true },
     { time: "01:04", msg: "PR #4815 · null-check /users", ok: true },
-    { time: "01:27", msg: "PR #4811 · retry stripe-hook", ok: true },
+    { time: "01:27", msg: "PR #4811 · retry stripe", ok: true },
     { time: "01:52", msg: "PR #4808 · redis stampede", ok: true },
   ];
 
@@ -1083,100 +1013,82 @@ function PatchVelocityWidget() {
 
   return (
     <WidgetShell
-      label="WIDGET_03 / VELOCITY"
+      label="W03/VELOCITY"
       title="Patch Velocity"
-      subtitle="Autonomous PR throughput — last 60 min."
+      subtitle="Autonomous PR throughput — 60 min."
     >
-      <div className="flex items-center gap-5">
-        {/* Radial */}
-        <div className="relative w-[120px] h-[120px] shrink-0">
-          <svg viewBox="0 0 120 120" className="-rotate-90 w-full h-full">
-            <circle
-              cx="60"
-              cy="60"
-              r={radius}
-              stroke="rgba(255,255,255,0.06)"
-              strokeWidth="6"
-              fill="none"
-            />
-            <motion.circle
-              cx="60"
-              cy="60"
-              r={radius}
-              stroke="url(#velGrad)"
-              strokeWidth="6"
-              fill="none"
-              strokeLinecap="round"
-              strokeDasharray={circ}
-              initial={{ strokeDashoffset: circ }}
-              whileInView={{ strokeDashoffset: circ * (1 - progress) }}
-              viewport={{ once: true }}
-              transition={{ duration: 1.6, ease: "easeOut" }}
-            />
-            <defs>
-              <linearGradient id="velGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#8B5CF6" />
-                <stop offset="100%" stopColor="#60A5FA" />
-              </linearGradient>
-            </defs>
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-3xl font-semibold text-white tracking-tight">
-              78
-              <span className="text-base text-text-muted">%</span>
-            </span>
-            <span className="text-[9px] uppercase tracking-wider text-text-muted mt-0.5">
-              auto-merged
-            </span>
+      <div className="bg-background flex flex-col h-full p-4">
+        <div className="flex items-center gap-5">
+          {/* Radial */}
+          <div className="relative w-[100px] h-[100px] shrink-0 border-4 border-foreground rounded-full bg-primary-yellow shadow-bauhaus-sm flex items-center justify-center">
+            <svg viewBox="0 0 120 120" className="-rotate-90 w-full h-full absolute inset-0">
+              <motion.circle
+                cx="60"
+                cy="60"
+                r={radius}
+                stroke="#0055FF"
+                strokeWidth="12"
+                fill="none"
+                strokeDasharray={circ}
+                initial={{ strokeDashoffset: circ }}
+                whileInView={{ strokeDashoffset: circ * (1 - progress) }}
+                viewport={{ once: true }}
+                transition={{ duration: 1.6, ease: "easeOut" }}
+              />
+            </svg>
+            <div className="relative flex flex-col items-center justify-center bg-background border-4 border-foreground w-16 h-16 rounded-full z-10">
+              <span className="text-xl font-black text-foreground tracking-tight">
+                78%
+              </span>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="flex-1 space-y-3">
+            <div className="border-b-4 border-foreground pb-2">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-foreground">
+                PRs / hr
+              </div>
+              <div className="text-2xl font-black text-foreground">
+                12.4
+                <span className="text-xs font-bold bg-foreground text-background px-1 ml-2">↑ 2.1</span>
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-foreground">
+                avg ship
+              </div>
+              <div className="text-2xl font-black text-foreground">
+                4m 12s
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="flex-1 space-y-3">
-          <div>
-            <div className="text-[9px] uppercase tracking-wider text-text-muted">
-              PRs / hr
-            </div>
-            <div className="text-2xl font-semibold text-white">
-              12.4
-              <span className="text-xs text-emerald-400 ml-1.5">↑ 2.1</span>
-            </div>
-          </div>
-          <div>
-            <div className="text-[9px] uppercase tracking-wider text-text-muted">
-              avg ship time
-            </div>
-            <div className="text-2xl font-semibold text-white">
-              4m
-              <span className="text-xs text-text-muted ml-1">12s</span>
-            </div>
-          </div>
+        {/* Live feed */}
+        <div className="mt-auto pt-4 border-t-4 border-foreground space-y-1.5 overflow-hidden">
+          <AnimatePresence mode="popLayout">
+            {feed
+              .slice(tick % feed.length, (tick % feed.length) + 3)
+              .concat(feed.slice(0, Math.max(0, ((tick % feed.length) + 3) - feed.length)))
+              .slice(0, 3)
+              .map((f, i) => (
+                <motion.div
+                  key={`${tick}-${i}`}
+                  layout
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-center gap-2 text-[11px] font-bold font-mono uppercase bg-foreground text-background px-2 py-1"
+                >
+                  <span className="text-primary-yellow">{f.time}</span>
+                  <span className="w-2 h-2 bg-primary-red border border-background" />
+                  <span className="truncate">{f.msg}</span>
+                </motion.div>
+              ))}
+          </AnimatePresence>
         </div>
-      </div>
-
-      {/* Live feed */}
-      <div className="mt-5 pt-4 border-t border-white/5 space-y-1.5 overflow-hidden">
-        <AnimatePresence mode="popLayout">
-          {feed
-            .slice(tick % feed.length, (tick % feed.length) + 3)
-            .concat(feed.slice(0, Math.max(0, ((tick % feed.length) + 3) - feed.length)))
-            .slice(0, 3)
-            .map((f, i) => (
-              <motion.div
-                key={`${tick}-${i}`}
-                layout
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1 - i * 0.3, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.4 }}
-                className="flex items-center gap-2 text-[10px] font-mono"
-              >
-                <span className="text-text-muted">{f.time}</span>
-                <span className="w-1 h-1 rounded-full bg-emerald-400" />
-                <span className="text-white/80 truncate">{f.msg}</span>
-              </motion.div>
-            ))}
-        </AnimatePresence>
       </div>
     </WidgetShell>
   );

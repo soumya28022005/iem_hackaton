@@ -4,9 +4,8 @@ import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lock, ArrowRight, Activity, Command, User, Mail, TerminalSquare } from "lucide-react";
+import { Lock, ArrowRight, User, Mail, ShieldAlert } from "lucide-react";
 import Link from "next/link";
-import { DitherShader } from "@/components/ui/dither-shader";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -35,7 +34,7 @@ export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
   const [showShutter, setShowShutter] = useState(false);
-
+  
   const [email, setEmail] = useState("admin@nexusops.ai");
   const [password, setPassword] = useState("password");
   const [name, setName] = useState("");
@@ -77,7 +76,7 @@ export default function AuthPage() {
         const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
         const idToken = await credential.user.getIdToken();
         const res = await signIn("firebase", { redirect: false, idToken });
-        if (res?.error) setError("AUTHENTICATION FAILED. INCORRECT CREDENTIALS.");
+        if (res?.error) setError("Authentication failed. Check your credentials.");
         else {
           router.push("/dashboard");
           router.refresh();
@@ -89,14 +88,14 @@ export default function AuthPage() {
         }
         const idToken = await credential.user.getIdToken();
         const res = await signIn("firebase", { redirect: false, idToken });
-        if (res?.error) toggleMode();
+        if (res?.error) setError("Registration completed, but automatic login failed.");
         else {
           router.push("/dashboard");
           router.refresh();
         }
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "SYSTEM FAULT. CONNECTION DROPPED.";
+      const message = err instanceof Error ? err.message : "System error. Please try again later.";
       setError(message);
     } finally {
       setIsLoading(false);
@@ -109,194 +108,180 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#030303] flex items-center justify-center p-4 lg:p-8 font-sans selection:bg-nexus-primary/30 overflow-hidden">
-      <div className={`w-full max-w-[1200px] flex ${!isLogin ? "lg:flex-row-reverse" : ""} rounded-3xl overflow-hidden border border-white/5 shadow-[0_0_100px_rgba(139,92,246,0.1)] relative bg-black/40 backdrop-blur-3xl min-h-[700px] transition-all duration-700 ease-in-out`}>
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4 lg:p-8 font-sans overflow-hidden relative">
+      {/* Bauhaus Decorative Background Elements */}
+      <div className="absolute top-10 left-10 w-32 h-32 bg-primary-yellow rounded-full border-4 border-foreground bauhaus-shadow-md hidden lg:block" />
+      <div className="absolute bottom-20 left-20 w-48 h-12 bg-primary-blue border-4 border-foreground bauhaus-shadow-md hidden lg:block -rotate-12" />
+      <div className="absolute top-40 right-20 w-40 h-40 bg-primary-red border-4 border-foreground bauhaus-shadow-md hidden lg:block" />
+      <div className="absolute bottom-10 right-10 w-24 h-24 bg-background border-4 border-foreground rounded-full bauhaus-pattern-dots hidden lg:block" />
+
+      <div className={`w-full max-w-[1000px] flex flex-col ${!isLogin ? "lg:flex-row-reverse" : "lg:flex-row"} border-4 border-foreground bauhaus-shadow-lg bg-background relative z-10 transition-all duration-500 overflow-hidden`}>
         
         {/* Shutter Overlay */}
         <AnimatePresence>
           {showShutter && (
             <motion.div
-              initial={{ scaleX: 0, transformOrigin: "left" }}
+              initial={{ scaleX: 0, transformOrigin: isLogin ? "left" : "right" }}
               animate={{ scaleX: 1 }}
-              exit={{ scaleX: 0, transformOrigin: "right" }}
+              exit={{ scaleX: 0, transformOrigin: isLogin ? "right" : "left" }}
               transition={{ duration: 0.4, ease: "easeInOut" }}
-              className="absolute inset-0 z-50 bg-[#060606] border-x-4 border-nexus-primary/50 shadow-2xl"
-            />
+              className="absolute inset-0 z-50 bg-foreground flex flex-col items-center justify-center border-x-8 border-primary-red"
+            >
+              <div className="flex gap-6 items-center">
+                <div className="w-10 h-10 bg-primary-yellow rounded-full border-4 border-background animate-bounce" />
+                <div className="w-10 h-10 bg-primary-blue border-4 border-background animate-bounce" style={{ animationDelay: "0.1s" }} />
+                <div className="w-10 h-10 bg-primary-red rotate-45 border-4 border-background animate-bounce" style={{ animationDelay: "0.2s" }} />
+              </div>
+            </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Ambient Glow */}
-        <div className={`absolute top-0 ${isLogin ? "left-1/2 -translate-x-1/2" : "right-1/4 -translate-y-1/2"} w-[800px] h-[400px] ${isLogin ? "bg-nexus-primary/20" : "bg-blue-600/20"} blur-[120px] pointer-events-none rounded-full transition-all duration-700`} />
-
         {/* Aesthetic Panel */}
-        <div className={`hidden lg:flex w-1/2 relative flex-col justify-between p-12 ${isLogin ? "border-r" : "border-l"} border-white/10 overflow-hidden transition-all duration-700`}>
-          <div className={`absolute inset-0 z-0 ${isLogin ? "opacity-40" : "opacity-30"} mix-blend-screen pointer-events-none transition-opacity duration-700`}>
-            {isLogin ? (
-              <DitherShader
-                src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop"
-                gridSize={3} colorMode="duotone" primaryColor="#000000" secondaryColor="#4c1d95" animated={true} animationSpeed={0.01} className="w-full h-full object-cover"
-              />
-            ) : (
-              <DitherShader
-                src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=3540&auto=format&fit=crop"
-                gridSize={3} colorMode="duotone" primaryColor="#000000" secondaryColor="#0a4387" animated={true} animationSpeed={0.01} className="w-full h-full object-cover"
-              />
-            )}
-          </div>
-          <div className={`absolute inset-0 bg-gradient-to-${isLogin ? "b" : "t"} from-black/20 via-black/80 to-black z-0 pointer-events-none`} />
-
-          <div className={`relative z-10 flex items-center gap-3 ${!isLogin ? "justify-end" : ""}`}>
-            {isLogin && (
-              <Link href="/">
-                <div className="w-10 h-10 bg-black/50 border border-nexus-primary/30 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(139,92,246,0.3)] backdrop-blur-md">
-                  <Activity className="w-5 h-5 text-nexus-primary" />
-                </div>
-              </Link>
-            )}
-            <span className="text-xl font-playfair font-bold tracking-widest text-white/90">NEXUSOPS</span>
-            {!isLogin && (
-              <Link href="/">
-                <div className="w-10 h-10 bg-black/50 border border-blue-500/30 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.3)] backdrop-blur-md">
-                  <TerminalSquare className="w-5 h-5 text-blue-400" />
-                </div>
-              </Link>
-            )}
+        <div className={`w-full lg:w-1/2 p-12 border-b-4 lg:border-b-0 ${isLogin ? 'lg:border-r-4' : 'lg:border-l-4'} border-foreground flex flex-col justify-between ${isLogin ? 'bg-primary-yellow' : 'bg-primary-blue'} transition-colors duration-500`}>
+          <div className="flex items-center justify-between">
+            <Link href="/" className="group">
+              <div className="w-12 h-12 bg-background border-4 border-foreground flex items-center justify-center bauhaus-shadow-sm group-hover:translate-x-[2px] group-hover:translate-y-[2px] group-hover:shadow-none transition-all">
+                <span className="font-black text-xl leading-none tracking-tighter">NX</span>
+              </div>
+            </Link>
+            <div className="px-3 py-1 bg-background border-2 border-foreground font-bold text-sm uppercase">
+              {isLogin ? 'AUTH_SEQ' : 'NEW_NODE'}
+            </div>
           </div>
 
-          <div className={`relative z-10 mb-20 ${!isLogin ? "text-right" : ""}`}>
-            <motion.div
-              initial={{ opacity: 0, x: isLogin ? -20 : 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
-              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded bg-white/5 border border-white/10 text-text-muted text-xs font-mono tracking-widest mb-6 ${!isLogin ? "ml-auto" : ""}`}
-            >
-              {!isLogin && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
-              {isLogin ? "SECURE_UPLINK" : "NEW_NODE_DETECTION"}
-              {isLogin && <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />}
-            </motion.div>
-            <motion.h1 
-              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-              className="text-5xl font-playfair font-bold text-white leading-tight"
-            >
-              {isLogin ? "Initialize" : "Become"}<br/>
-              <span className={`text-transparent bg-clip-text bg-gradient-to-${isLogin ? "r from-blue-400 to-nexus-primary" : "l from-blue-400 to-nexus-primary"} italic`}>
-                {isLogin ? "Command Core" : "Omniscient"}
-              </span>
-            </motion.h1>
-            <motion.p 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
-              className={`mt-6 text-text-secondary font-display text-sm leading-relaxed max-w-sm ${!isLogin ? "ml-auto" : ""}`}
-            >
+          <div className="mt-16 mb-8">
+            <h1 className="text-5xl md:text-6xl font-black uppercase tracking-tighter leading-none mb-6">
+              {isLogin ? "Welcome\nBack" : "Join The\nNetwork"}
+            </h1>
+            <p className="text-foreground/80 font-medium text-lg leading-snug max-w-sm border-l-4 border-foreground pl-4">
               {isLogin 
-                ? "Authenticate to access the AutoFix Engine and Deep Memory architecture. Enterprise-grade security enforced."
-                : "Registering an identity assigns you access keys to the Dual-Cockpit infrastructure."}
-            </motion.p>
+                ? "Authenticate your credentials to access the NexusOps command center."
+                : "Register a new identity to participate in the automated infrastructure."}
+            </p>
           </div>
+          
+          <div className="w-full h-2 bg-foreground" />
         </div>
 
         {/* Form Panel */}
-        <div className="w-full lg:w-1/2 flex flex-col justify-center relative z-10 bg-[#060606] p-8 sm:p-12 lg:p-16">
+        <div className="w-full lg:w-1/2 flex flex-col justify-center p-8 sm:p-12 bg-background">
           <div className="w-full max-w-md mx-auto">
             
-            <div className="flex justify-between items-center mb-10">
-              <h2 className="text-2xl font-playfair font-bold text-white tracking-wide">
+            <div className="flex justify-between items-end mb-8">
+              <h2 className="text-3xl font-black uppercase tracking-tighter">
                 {isLogin ? "Sign In" : "Register"}
               </h2>
-              <button onClick={toggleMode} className="text-sm font-display text-text-muted hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/10">
-                {isLogin ? "Request Access \u2192" : "\u2190 Already Active"}
+              <button 
+                onClick={toggleMode} 
+                className="text-sm font-bold uppercase underline hover:text-primary-red transition-colors"
+              >
+                {isLogin ? "Create Account" : "Login Instead"}
               </button>
             </div>
 
-            <form onSubmit={handleAuth} className="space-y-6">
-              {error && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 font-mono text-xs tracking-wider">
-                  &gt; {error}
-                </motion.div>
-              )}
+            <form onSubmit={handleAuth} className="space-y-5">
+              <AnimatePresence>
+                {error && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }} 
+                    animate={{ opacity: 1, height: "auto" }} 
+                    exit={{ opacity: 0, height: 0 }}
+                    className="p-3 bg-primary-red text-background font-bold border-4 border-foreground flex items-start gap-2"
+                  >
+                    <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" />
+                    <span className="text-sm leading-tight">{error}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-              <div className="space-y-4">
-                {!isLogin && (
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <User className="h-4 w-4 text-text-muted group-focus-within:text-blue-400 transition-colors" />
+              {!isLogin && (
+                <div className="space-y-1">
+                  <label className="font-bold text-sm uppercase">Full Name</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-foreground" />
                     </div>
                     <input
                       id="name" type="text" required value={name} onChange={(e) => setName(e.target.value)}
-                      className="block w-full pl-11 pr-4 py-3.5 bg-white/[0.03] border border-white/10 rounded-xl text-white placeholder-text-muted focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono text-sm"
-                      placeholder="System Designation"
+                      className="block w-full pl-10 pr-3 py-3 bg-background border-4 border-foreground text-foreground placeholder:text-foreground/50 focus:outline-none focus:ring-0 focus:border-primary-red transition-colors font-bold"
+                      placeholder="Jane Doe"
                     />
                   </div>
-                )}
+                </div>
+              )}
 
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    {isLogin ? <Command className="h-4 w-4 text-text-muted group-focus-within:text-nexus-primary transition-colors" /> : <Mail className="h-4 w-4 text-text-muted group-focus-within:text-blue-400 transition-colors" />}
+              <div className="space-y-1">
+                <label className="font-bold text-sm uppercase">Email Address</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail className="h-5 w-5 text-foreground" />
                   </div>
                   <input
                     id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                    className={`block w-full pl-11 pr-4 py-3.5 bg-white/[0.03] border border-white/10 rounded-xl text-white placeholder-text-muted focus:outline-none focus:ring-1 transition-all font-mono text-sm ${isLogin ? "focus:ring-nexus-primary focus:border-nexus-primary" : "focus:ring-blue-500 focus:border-blue-500"}`}
-                    placeholder="sys.admin@nexus.io"
+                    className="block w-full pl-10 pr-3 py-3 bg-background border-4 border-foreground text-foreground placeholder:text-foreground/50 focus:outline-none focus:ring-0 focus:border-primary-red transition-colors font-bold"
+                    placeholder="user@nexusops.ai"
                   />
                 </div>
+              </div>
 
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Lock className={`h-4 w-4 text-text-muted transition-colors ${isLogin ? "group-focus-within:text-nexus-primary" : "group-focus-within:text-blue-400"}`} />
-                  </div>
-                  <input
-                    id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
-                    className={`block w-full pl-11 pr-4 py-3.5 bg-white/[0.03] border border-white/10 rounded-xl text-white placeholder-text-muted focus:outline-none focus:ring-1 transition-all font-mono text-sm tracking-widest ${isLogin ? "focus:ring-nexus-primary focus:border-nexus-primary" : "focus:ring-blue-500 focus:border-blue-500"}`}
-                    placeholder="••••••••"
-                  />
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <label className="font-bold text-sm uppercase">Password</label>
                   {isLogin && (
-                    <button type="button" className="absolute inset-y-0 right-0 pr-4 flex items-center text-xs text-text-muted hover:text-white transition-colors font-display">
+                    <button type="button" className="text-xs font-bold uppercase underline hover:text-primary-red">
                       Forgot?
                     </button>
                   )}
+                </div>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-foreground" />
+                  </div>
+                  <input
+                    id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
+                    className="block w-full pl-10 pr-3 py-3 bg-background border-4 border-foreground text-foreground placeholder:text-foreground/50 focus:outline-none focus:ring-0 focus:border-primary-red transition-colors font-bold"
+                    placeholder="••••••••"
+                  />
                 </div>
               </div>
 
               <button
                 type="submit" disabled={isLoading}
-                className={`w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-semibold text-white transition-all items-center gap-2 relative overflow-hidden group disabled:opacity-50 ${isLogin ? "bg-nexus-primary hover:bg-nexus-hover" : "bg-blue-600 hover:bg-blue-500"}`}
+                className={`w-full flex justify-center items-center gap-2 py-3 px-4 border-4 border-foreground text-background font-black uppercase tracking-widest transition-all disabled:opacity-50 ${isLogin ? "bg-primary-red" : "bg-primary-blue"} bauhaus-shadow-sm hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-none active:bg-foreground`}
               >
-                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
                 {isLoading ? (
-                  <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                  <div className="w-5 h-5 rounded-full border-4 border-background/30 border-t-background animate-spin" />
                 ) : (
-                  <span className="relative z-10 flex items-center gap-2 font-display tracking-wide">
-                    {isLogin ? "Authenticate Session" : "Create Identity"} <ArrowRight className="w-4 h-4" />
-                  </span>
+                  <>
+                    {isLogin ? "Authenticate" : "Register Identity"} <ArrowRight className="w-5 h-5" />
+                  </>
                 )}
               </button>
             </form>
 
             <div className="mt-8 flex items-center justify-center gap-4">
-              <div className="h-px w-full bg-white/10" />
-              <span className="text-xs font-mono text-text-muted uppercase tracking-widest whitespace-nowrap">
-                {isLogin ? "Secure Protocol" : "Or Deploy Via"}
+              <div className="h-1 flex-1 bg-foreground" />
+              <span className="font-black text-xs uppercase tracking-widest">
+                OR USE OAUTH
               </span>
-              <div className="h-px w-full bg-white/10" />
+              <div className="h-1 flex-1 bg-foreground" />
             </div>
 
-            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+            <div className="mt-6 flex flex-col sm:flex-row gap-4">
               <button
                 onClick={() => handleOAuthLogin("github")} disabled={isLoading}
-                className="flex-1 flex justify-center py-3 px-4 rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.05] text-sm font-medium text-white transition-all items-center gap-3 disabled:opacity-50 shadow-sm font-display tracking-wide"
+                className="flex-1 flex justify-center items-center gap-2 py-3 px-4 bg-background border-4 border-foreground font-black uppercase transition-all hover:bg-foreground hover:text-background bauhaus-shadow-sm hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-none"
               >
-                <GithubIcon className="w-5 h-5 opacity-80" />
-                GitHub
+                <GithubIcon className="w-5 h-5" /> GitHub
               </button>
               <button
                 onClick={() => handleOAuthLogin("google")} disabled={isLoading}
-                className="flex-1 flex justify-center py-3 px-4 rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.05] text-sm font-medium text-white transition-all items-center gap-3 disabled:opacity-50 shadow-sm font-display tracking-wide"
+                className="flex-1 flex justify-center items-center gap-2 py-3 px-4 bg-background border-4 border-foreground font-black uppercase transition-all hover:bg-foreground hover:text-background bauhaus-shadow-sm hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-none"
               >
-                <GoogleIcon className="w-5 h-5 opacity-80" />
-                Google
+                <GoogleIcon className="w-5 h-5" /> Google
               </button>
             </div>
 
-            <p className="mt-10 text-center text-xs font-mono text-text-muted">
-              By authenticating, you agree to the <Link href="#" className="underline hover:text-white">Terms of Protocol</Link>.
-            </p>
           </div>
         </div>
       </div>

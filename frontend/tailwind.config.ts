@@ -8,182 +8,51 @@ const config: Config = {
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
-  	extend: {
-  		colors: {
-  			'bg-base': '#080a0f',
-  			'bg-surface': '#0e1117',
-  			'bg-elevated': '#161b24',
-  			'bg-hover': '#1c2230',
-  			'bg-selected': '#1a2640',
-  			'border-faint': '#1a1f2e',
-  			'border-default': '#242b3d',
-  			'border-strong': '#323c52',
-  			'text-primary': '#e2e8f5',
-  			'text-secondary': '#a8b6d4',
-  			'text-muted': '#72809e',
-  			'text-code': '#7dd3fc',
-  			'memory-primary': '#A7C6FF',
-  			'memory-hover': '#67e8f9',
-  			'memory-muted': '#0a2535',
-  			'memory-border': '#164e63',
-  			'memory-tag-bg': '#0c2030',
-  			'memory-tag-border': '#164350',
-  			'autofix-primary': '#FFD7C2',
-  			'autofix-hover': '#fbbf24',
-  			'autofix-muted': '#1c1200',
-  			'autofix-border': '#422006',
-  			'nexus-primary': '#C9B6FF',
-  			'nexus-hover': '#a78bfa',
-  			'nexus-muted': '#1a0f35',
-  			'nexus-border': '#3b2080',
-  			'sev-critical': '#ef4444',
-  			'sev-critical-bg': '#1f0505',
-  			'sev-critical-border': '#3f0808',
-  			'sev-high': '#f97316',
-  			'sev-high-bg': '#1c0d00',
-  			'sev-high-border': '#3d2000',
-  			'sev-medium': '#eab308',
-  			'sev-medium-bg': '#1a1400',
-  			'sev-medium-border': '#3a2d00',
-  			'sev-low': '#22c55e',
-  			'sev-low-bg': '#071a0e',
-  			'sev-low-border': '#0f3520',
-  			'status-success': '#9FE8C3',
-  			'status-warning': '#eab308',
-  			'status-error': '#ef4444',
-  			'status-neutral': '#475569',
-  			'diff-added-bg': '#052a10',
-  			'diff-removed-bg': '#2a0505',
-  			'diff-added-line': '#0a4020',
-  			'diff-removed-line': '#4a0a0a'
-  		},
-        fontFamily: {
-          sans: ["var(--font-inter)", "system-ui", "sans-serif"],
-          display: ["var(--font-space)", "system-ui", "sans-serif"],
-          playfair: ["var(--font-playfair)", "serif"],
-          mono: ["var(--font-mono)", "'JetBrains Mono'", "'Fira Code'", "monospace"],
+    extend: {
+      colors: {
+        background: '#F0F0F0',
+        foreground: '#121212',
+        'primary-red': '#D02020',
+        'primary-blue': '#1040C0',
+        'primary-yellow': '#F0C020',
+        'border-color': '#121212',
+        muted: '#E0E0E0',
+        // Keep some critical legacy colors temporarily to avoid instant breakage of unmigrated components
+        'bg-base': '#F0F0F0',
+        'bg-surface': '#FFFFFF',
+        'bg-elevated': '#FFFFFF',
+        'bg-hover': '#E0E0E0',
+        'border-default': '#121212',
+        'text-primary': '#121212',
+        'text-secondary': '#121212',
+        'memory-primary': '#D02020',
+        'autofix-primary': '#1040C0',
+        'nexus-primary': '#F0C020',
+      },
+      fontFamily: {
+        sans: ["var(--font-outfit)", "system-ui", "sans-serif"],
+        display: ["var(--font-outfit)", "system-ui", "sans-serif"],
+      },
+      boxShadow: {
+        'bauhaus-sm': '4px 4px 0px 0px #121212',
+        'bauhaus-md': '6px 6px 0px 0px #121212',
+        'bauhaus-lg': '8px 8px 0px 0px #121212',
+      },
+      animation: {
+        'accordion-down': 'accordion-down 0.2s ease-out',
+        'accordion-up': 'accordion-up 0.2s ease-out'
+      },
+      keyframes: {
+        'accordion-down': {
+          from: { height: '0' },
+          to: { height: 'var(--radix-accordion-content-height)' }
         },
-  		fontSize: {
-  			'2xs': [
-  				'0.6875rem',
-  				{
-  					lineHeight: '1rem'
-  				}
-  			],
-  			xs: [
-  				'0.8125rem',
-  				{
-  					lineHeight: '1.125rem'
-  				}
-  			],
-  			sm: [
-  				'0.9375rem',
-  				{
-  					lineHeight: '1.375rem'
-  				}
-  			],
-  			base: [
-  				'0.9375rem',
-  				{
-  					lineHeight: '1.625rem'
-  				}
-  			],
-  			lg: [
-  				'1.0625rem',
-  				{
-  					lineHeight: '1.5rem'
-  				}
-  			],
-  			xl: [
-  				'1.25rem',
-  				{
-  					lineHeight: '1.75rem'
-  				}
-  			],
-  			'2xl': [
-  				'1.5rem',
-  				{
-  					lineHeight: '2rem'
-  				}
-  			],
-  			'3xl': [
-  				'2rem',
-  				{
-  					lineHeight: '2.25rem'
-  				}
-  			]
-  		},
-  		animation: {
-  			'step-glow': 'stepGlow 1.5s ease-in-out infinite',
-  			'nexus-pulse': 'nexusPulse 2s ease-in-out 3',
-  			'critical-blink': 'criticalBlink 2s ease-in-out infinite',
-  			'fade-slide-up': 'fadeSlideUp 250ms ease forwards',
-  			'spin-slow': 'spin 2s linear infinite',
-  			'pulse-dot': 'pulseDot 1.5s ease-in-out infinite',
-  			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
-  		},
-  		keyframes: {
-  			stepGlow: {
-  				'0%, 100%': {
-  					boxShadow: '0 0 0 0 rgba(245, 158, 11, 0.5)'
-  				},
-  				'50%': {
-  					boxShadow: '0 0 0 8px rgba(245, 158, 11, 0)'
-  				}
-  			},
-  			nexusPulse: {
-  				'0%, 100%': {
-  					borderColor: '#3b2080'
-  				},
-  				'50%': {
-  					borderColor: '#8b5cf6'
-  				}
-  			},
-  			criticalBlink: {
-  				'0%, 100%': {
-  					borderLeftColor: '#ef4444'
-  				},
-  				'50%': {
-  					borderLeftColor: 'rgba(239, 68, 68, 0.3)'
-  				}
-  			},
-  			fadeSlideUp: {
-  				from: {
-  					opacity: '0',
-  					transform: 'translateY(10px)'
-  				},
-  				to: {
-  					opacity: '1',
-  					transform: 'translateY(0)'
-  				}
-  			},
-  			pulseDot: {
-  				'0%, 100%': {
-  					opacity: '1'
-  				},
-  				'50%': {
-  					opacity: '0.4'
-  				}
-  			},
-  			'accordion-down': {
-  				from: {
-  					height: '0'
-  				},
-  				to: {
-  					height: 'var(--radix-accordion-content-height)'
-  				}
-  			},
-  			'accordion-up': {
-  				from: {
-  					height: 'var(--radix-accordion-content-height)'
-  				},
-  				to: {
-  					height: '0'
-  				}
-  			}
-  		}
-  	}
+        'accordion-up': {
+          from: { height: 'var(--radix-accordion-content-height)' },
+          to: { height: '0' }
+        }
+      }
+    }
   },
   plugins: [],
 };
