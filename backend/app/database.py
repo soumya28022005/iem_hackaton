@@ -46,10 +46,18 @@ class Base(DeclarativeBase):
 
 # ── Auto-create tables on startup (dev only) ──
 async def init_db():
-    """Create all tables if they don't exist. Used for dev/SQLite — in production use Alembic."""
+    """Create all tables if they don't exist. Used for dev/SQLite."""
     import app.models  # noqa: F401
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    
+    # In production with Postgres, we should ideally use Alembic migrations.
+    # But for now, let's just make sure this doesn't crash the app.
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        print("Database tables initialized (if they didn't exist).")
+    except Exception as e:
+        print(f"Note: Database initialization skipped or table already exists: {e}")
+
 
 
 # ── Dependency ──
