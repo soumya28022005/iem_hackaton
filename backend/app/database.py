@@ -6,7 +6,15 @@ from sqlalchemy.orm import DeclarativeBase
 from app.config import settings
 
 # ── Detect if using SQLite (dev fallback) or PostgreSQL (production) ──
-is_sqlite = settings.DATABASE_URL.startswith("sqlite")
+# Railway provides DATABASE_URL as postgres:// or postgresql:// —
+# SQLAlchemy async requires postgresql+asyncpg://
+_raw_url = settings.DATABASE_URL
+if _raw_url.startswith("postgres://"):
+    _raw_url = _raw_url.replace("postgres://", "postgresql+asyncpg://", 1)
+elif _raw_url.startswith("postgresql://"):
+    _raw_url = _raw_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+is_sqlite = _raw_url.startswith("sqlite")
 
 engine_kwargs = {
     "echo": settings.DEBUG,
@@ -21,7 +29,7 @@ if not is_sqlite:
     })
 
 # ── Async Engine ──
-engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
+engine = create_async_engine(_raw_url, **engine_kwargs)
 
 # ── Session Factory ──
 async_session_maker = async_sessionmaker(

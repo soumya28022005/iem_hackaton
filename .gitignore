@@ -68,6 +68,10 @@ frontend/.env
 .aider*
 *.db
 backend/scripts/gen_token.py
+
+# Keep env examples tracked (they contain no secrets)
+!backend/.env.example
+!frontend/.env.example
 # Added by code-review-graph
 .code-review-graph/
 

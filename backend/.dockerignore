@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.db
+.env
+venv/
+.venv/
+venv_py314_backup/
+.git/
+.gitignore
+*.egg-info/
+dist/
+build/
+scripts/gen_token.py
