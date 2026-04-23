@@ -572,8 +572,8 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* ============ WORKFLOW ============ */}
-      <section className="relative z-10 py-32 border-b-4 border-foreground bg-primary-red overflow-hidden bauhaus-pattern-dots">
+      {/* ============ WORKFLOW / ARCHITECTURE ============ */}
+      <section id="architecture" className="relative z-10 py-32 border-b-4 border-foreground bg-primary-red overflow-hidden bauhaus-pattern-dots">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative bg-background border-4 border-foreground shadow-bauhaus-lg p-10 lg:p-16">
           <div className="text-center mb-20">
             <span className="inline-block text-[13px] font-bold uppercase tracking-[0.2em] text-foreground mb-4 border-2 border-foreground px-3 py-1 bg-primary-yellow shadow-bauhaus-sm">

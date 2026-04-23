@@ -38,15 +38,15 @@ export function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center gap-8 relative z-10">
-          <Link href="#architecture" className="text-sm font-bold text-foreground hover:text-primary-blue hover:underline decoration-2 underline-offset-4 transition-all">
+          <a href="#architecture" onClick={(e) => { e.preventDefault(); document.getElementById('architecture')?.scrollIntoView({ behavior: 'smooth' }); }} className="text-sm font-bold text-foreground hover:text-primary-blue hover:underline decoration-2 underline-offset-4 transition-all">
             Architecture
-          </Link>
-          <Link href="#features" className="text-sm font-bold text-foreground hover:text-primary-red hover:underline decoration-2 underline-offset-4 transition-all">
+          </a>
+          <a href="#features" onClick={(e) => { e.preventDefault(); document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' }); }} className="text-sm font-bold text-foreground hover:text-primary-red hover:underline decoration-2 underline-offset-4 transition-all">
             Features
-          </Link>
-          <Link href="#faq" className="text-sm font-bold text-foreground hover:text-primary-yellow hover:underline decoration-2 underline-offset-4 transition-all">
+          </a>
+          <a href="#faq" onClick={(e) => { e.preventDefault(); document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' }); }} className="text-sm font-bold text-foreground hover:text-primary-yellow hover:underline decoration-2 underline-offset-4 transition-all">
             FAQ
-          </Link>
+          </a>
         </div>
 
         <div className="flex items-center gap-6 relative z-10">

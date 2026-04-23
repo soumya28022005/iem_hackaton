@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
+import { signOut as firebaseSignOut } from "firebase/auth";
+import { firebaseAuth } from "@/lib/firebase";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -15,6 +18,7 @@ import {
   ChevronRight,
   Brain,
   LayoutDashboard,
+  LogOut,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -87,11 +91,29 @@ function NavItem({
 
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { setActiveModule } = useWorkspaceStore();
 
   const handleNavClick = (module: "memory" | "autofix" | "nexus") => {
     setActiveModule(module);
     onMobileClose();
+  };
+
+  const handleLogout = async () => {
+    try {
+      // Sign out of Firebase
+      await firebaseSignOut(firebaseAuth);
+    } catch (e) {
+      console.error("Firebase sign-out error:", e);
+    }
+    // Clear backend tokens
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+    }
+    // Sign out of NextAuth and redirect to login
+    await signOut({ redirect: false });
+    router.push("/login");
   };
 
   const sidebarContent = (
@@ -206,6 +228,14 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
           <Settings className="w-4 h-4 shrink-0" />
           {!collapsed && <span>Settings</span>}
         </Link>
+        <button
+          onClick={handleLogout}
+          title={collapsed ? "Logout" : undefined}
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-text-secondary hover:bg-red-500/10 hover:text-red-400 transition-all duration-150 w-full"
+        >
+          <LogOut className="w-4 h-4 shrink-0" />
+          {!collapsed && <span>Logout</span>}
+        </button>
         <button
           onClick={onToggle}
           className="hidden md:flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-text-muted hover:bg-bg-hover hover:text-text-secondary transition-all duration-150 w-full"

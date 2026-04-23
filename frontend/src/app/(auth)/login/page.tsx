@@ -9,6 +9,7 @@ import Link from "next/link";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
   updateProfile,
 } from "firebase/auth";
 import { firebaseAuth } from "@/lib/firebase";
@@ -40,6 +41,10 @@ export default function AuthPage() {
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetStatus, setResetStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [resetError, setResetError] = useState("");
 
   useEffect(() => {
     if (searchParams?.get("mode") === "register") {
@@ -105,6 +110,33 @@ export default function AuthPage() {
   const handleOAuthLogin = (provider: "github" | "google") => {
     setIsLoading(true);
     signIn(provider, { callbackUrl: "/dashboard" });
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail.trim()) {
+      setResetError("Please enter your email address.");
+      return;
+    }
+    setResetStatus("sending");
+    setResetError("");
+    try {
+      await sendPasswordResetEmail(firebaseAuth, resetEmail.trim());
+      setResetStatus("sent");
+    } catch (err: unknown) {
+      setResetStatus("error");
+      const msg = err instanceof Error ? err.message : "Failed to send reset email.";
+      // Clean up Firebase error messages
+      if (msg.includes("auth/user-not-found")) {
+        setResetError("No account found with this email.");
+      } else if (msg.includes("auth/invalid-email")) {
+        setResetError("Invalid email address.");
+      } else if (msg.includes("auth/too-many-requests")) {
+        setResetError("Too many attempts. Please try again later.");
+      } else {
+        setResetError(msg);
+      }
+    }
   };
 
   return (
@@ -228,7 +260,7 @@ export default function AuthPage() {
                 <div className="flex justify-between items-center">
                   <label className="font-bold text-sm uppercase">Password</label>
                   {isLogin && (
-                    <button type="button" className="text-xs font-bold uppercase underline hover:text-primary-red">
+                    <button type="button" onClick={() => { setShowForgotPassword(true); setResetEmail(email); setResetStatus("idle"); setResetError(""); }} className="text-xs font-bold uppercase underline hover:text-primary-red">
                       Forgot?
                     </button>
                   )}
@@ -285,6 +317,104 @@ export default function AuthPage() {
           </div>
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      <AnimatePresence>
+        {showForgotPassword && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-foreground/60 backdrop-blur-sm"
+            onClick={() => setShowForgotPassword(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="w-full max-w-md bg-background border-4 border-foreground bauhaus-shadow-lg p-8"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-black uppercase tracking-tighter">Reset Password</h3>
+                <button
+                  onClick={() => setShowForgotPassword(false)}
+                  className="w-8 h-8 flex items-center justify-center border-2 border-foreground hover:bg-foreground hover:text-background transition-all font-black"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {resetStatus === "sent" ? (
+                <div className="space-y-4">
+                  <div className="p-4 bg-primary-blue text-background border-4 border-foreground">
+                    <p className="font-bold text-sm">PASSWORD RESET EMAIL SENT</p>
+                    <p className="text-sm mt-1 text-background/80">Check your inbox for <strong>{resetEmail}</strong>. Follow the link to create a new password.</p>
+                  </div>
+                  <button
+                    onClick={() => setShowForgotPassword(false)}
+                    className="w-full py-3 bg-foreground text-background font-black uppercase tracking-widest border-4 border-foreground hover:bg-primary-yellow hover:text-foreground transition-all"
+                  >
+                    Back to Login
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleForgotPassword} className="space-y-5">
+                  <p className="text-foreground/70 font-medium text-sm border-l-4 border-foreground pl-3">
+                    Enter your email address and we&apos;ll send you a link to reset your password.
+                  </p>
+
+                  {resetError && (
+                    <div className="p-3 bg-primary-red text-background font-bold border-4 border-foreground flex items-start gap-2">
+                      <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" />
+                      <span className="text-sm leading-tight">{resetError}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-sm uppercase">Email Address</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Mail className="h-5 w-5 text-foreground" />
+                      </div>
+                      <input
+                        type="email"
+                        required
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        className="block w-full pl-10 pr-3 py-3 bg-background border-4 border-foreground text-foreground placeholder:text-foreground/50 focus:outline-none focus:ring-0 focus:border-primary-red transition-colors font-bold"
+                        placeholder="your@email.com"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotPassword(false)}
+                      className="flex-1 py-3 bg-background border-4 border-foreground font-black uppercase tracking-widest hover:bg-bg-elevated transition-all bauhaus-shadow-sm hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-none"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={resetStatus === "sending"}
+                      className="flex-1 py-3 bg-primary-red text-background border-4 border-foreground font-black uppercase tracking-widest hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-none transition-all bauhaus-shadow-sm disabled:opacity-50"
+                    >
+                      {resetStatus === "sending" ? (
+                        <div className="w-5 h-5 mx-auto rounded-full border-4 border-background/30 border-t-background animate-spin" />
+                      ) : (
+                        "Send Link"
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
