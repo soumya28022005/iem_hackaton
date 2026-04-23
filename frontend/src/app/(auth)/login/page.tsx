@@ -36,8 +36,8 @@ export default function AuthPage() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [showShutter, setShowShutter] = useState(false);
   
-  const [email, setEmail] = useState("admin@nexusops.ai");
-  const [password, setPassword] = useState("password");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -236,7 +236,7 @@ export default function AuthPage() {
                     <input
                       id="name" type="text" required value={name} onChange={(e) => setName(e.target.value)}
                       className="block w-full pl-10 pr-3 py-3 bg-background border-4 border-foreground text-foreground placeholder:text-foreground/50 focus:outline-none focus:ring-0 focus:border-primary-red transition-colors font-bold"
-                      placeholder="Jane Doe"
+                      placeholder="Your full name"
                     />
                   </div>
                 </div>
