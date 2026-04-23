@@ -15,6 +15,11 @@ from app.schemas.auth import (
     TokenResponse,
 )
 from app.services.auth_service import auth_service
+from app.services.email_service import (
+    send_welcome_email,
+    send_login_alert_email,
+    send_password_reset_email,
+)
 
 router = APIRouter()
 
@@ -37,6 +42,13 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
         provider="credentials",
     )
     tokens = auth_service.create_tokens(user)
+
+    # Send welcome email (fire-and-forget)
+    try:
+        await send_welcome_email(user.email, user.name or "there")
+    except Exception:
+        pass  # Don't block registration if email fails
+
     return AuthResponse(
         user=UserResponse.model_validate(user),
         tokens=TokenResponse(**tokens),
@@ -53,6 +65,13 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
             detail="Invalid email or password",
         )
     tokens = auth_service.create_tokens(user)
+
+    # Send login alert email (fire-and-forget)
+    try:
+        await send_login_alert_email(user.email, user.name or "there")
+    except Exception:
+        pass
+
     return AuthResponse(
         user=UserResponse.model_validate(user),
         tokens=TokenResponse(**tokens),
@@ -134,6 +153,24 @@ async def refresh_token(body: RefreshTokenRequest, db: AsyncSession = Depends(ge
 
     tokens = auth_service.create_tokens(user)
     return TokenResponse(**tokens)
+
+
+@router.post("/password-reset-notify")
+async def password_reset_notify(body: dict, db: AsyncSession = Depends(get_db)):
+    """Send a branded password-reset notification after Firebase reset is triggered."""
+    email = body.get("email", "")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+
+    user = await auth_service.get_user_by_email(db, email)
+    name = user.name if user else email.split("@")[0]
+
+    try:
+        await send_password_reset_email(email, name)
+    except Exception:
+        pass  # Best-effort
+
+    return {"message": "Password reset notification sent"}
 
 
 @router.delete("/logout", status_code=status.HTTP_204_NO_CONTENT)

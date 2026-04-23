@@ -61,6 +61,14 @@ class Settings(BaseSettings):
     # ── Firebase ──
     FIREBASE_WEB_API_KEY: Optional[str] = None
 
+    # ── SMTP (Transactional Emails) ──
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 465
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM_EMAIL: str = "noreply@nexusops.io"
+    SMTP_FROM_NAME: str = "NexusOps"
+
     # ── Frontend ──
     FRONTEND_URL: str = "http://localhost:3000"
 

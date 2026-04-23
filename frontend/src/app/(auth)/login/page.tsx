@@ -122,6 +122,19 @@ export default function AuthPage() {
     setResetError("");
     try {
       await sendPasswordResetEmail(firebaseAuth, resetEmail.trim());
+
+      // Also trigger branded NexusOps notification email via backend
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        await fetch(`${apiUrl}/api/auth/password-reset-notify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: resetEmail.trim() }),
+        });
+      } catch {
+        // Best-effort — don't block the flow
+      }
+
       setResetStatus("sent");
     } catch (err: unknown) {
       setResetStatus("error");
