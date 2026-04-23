@@ -313,6 +313,9 @@ async def _send_email(to_email: str, subject: str, html_body: str) -> bool:
     from_email = settings.SMTP_FROM_EMAIL
     from_name = settings.SMTP_FROM_NAME
 
+    if not settings.ENABLE_EMAILS:
+        return False
+
     if not all([smtp_host, smtp_user, smtp_password]):
         logger.warning("SMTP is not configured — skipping email to %s", to_email)
         return False

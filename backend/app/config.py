@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     FIREBASE_WEB_API_KEY: Optional[str] = None
 
     # ── SMTP (Transactional Emails) ──
+    ENABLE_EMAILS: bool = False
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 465
     SMTP_USER: Optional[str] = None
