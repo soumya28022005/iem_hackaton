@@ -29,6 +29,31 @@ const GoogleIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+function getFirebaseAuthMessage(error: unknown) {
+  const code = typeof error === "object" && error !== null && "code" in error
+    ? String((error as { code?: unknown }).code)
+    : "";
+
+  switch (code) {
+    case "auth/email-already-in-use":
+      return "An account already exists for this email. Switch to sign in instead.";
+    case "auth/invalid-email":
+      return "Enter a valid email address.";
+    case "auth/operation-not-allowed":
+      return "Email/password auth is not enabled for this Firebase project.";
+    case "auth/weak-password":
+      return "Use a password with at least 6 characters.";
+    case "auth/user-not-found":
+    case "auth/wrong-password":
+    case "auth/invalid-credential":
+      return "Invalid email or password.";
+    case "auth/too-many-requests":
+      return "Too many attempts. Please try again later.";
+    default:
+      return error instanceof Error ? error.message : "System error. Please try again later.";
+  }
+}
+
 export default function AuthPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -100,8 +125,7 @@ export default function AuthPage() {
         }
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "System error. Please try again later.";
-      setError(message);
+      setError(getFirebaseAuthMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -122,19 +146,6 @@ export default function AuthPage() {
     setResetError("");
     try {
       await sendPasswordResetEmail(firebaseAuth, resetEmail.trim());
-
-      // Also trigger branded NexusOps notification email via backend
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-        await fetch(`${apiUrl}/api/auth/password-reset-notify`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: resetEmail.trim() }),
-        });
-      } catch {
-        // Best-effort — don't block the flow
-      }
-
       setResetStatus("sent");
     } catch (err: unknown) {
       setResetStatus("error");

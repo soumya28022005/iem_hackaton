@@ -1,0 +1,82 @@
+<svg width="1200" height="600" viewBox="0 0 1200 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="nexus_bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1E293B"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="15" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <linearGradient id="line_grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3B82F6" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#3B82F6" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#3B82F6" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="600" rx="24" fill="url(#nexus_bg)"/>
+  
+  <!-- Left Side: Inputs -->
+  <g transform="translate(100, 150)">
+    <rect x="0" y="0" width="240" height="300" rx="16" fill="#1E293B" stroke="#334155" stroke-width="1"/>
+    <text x="20" y="30" fill="#94A3B8" font-family="Inter, sans-serif" font-size="12" font-weight="700">INGESTION LAYER</text>
+    
+    <!-- Input Nodes -->
+    <rect x="20" y="50" width="200" height="40" rx="8" fill="#0F172A" stroke="#3B82F6" stroke-opacity="0.3"/>
+    <text x="40" y="75" fill="#F8FAFC" font-family="Inter, sans-serif" font-size="12">Telegram (Team Chat)</text>
+    
+    <rect x="20" y="100" width="200" height="40" rx="8" fill="#0F172A" stroke="#3B82F6" stroke-opacity="0.3"/>
+    <text x="40" y="125" fill="#F8FAFC" font-family="Inter, sans-serif" font-size="12">Sentry (Stack Traces)</text>
+    
+    <rect x="20" y="150" width="200" height="40" rx="8" fill="#0F172A" stroke="#3B82F6" stroke-opacity="0.3"/>
+    <text x="40" y="175" fill="#F8FAFC" font-family="Inter, sans-serif" font-size="12">Docs (PDF/Markdown)</text>
+    
+    <rect x="20" y="200" width="200" height="40" rx="8" fill="#0F172A" stroke="#3B82F6" stroke-opacity="0.3"/>
+    <text x="40" y="225" fill="#F8FAFC" font-family="Inter, sans-serif" font-size="12">Voice (Whisper STT)</text>
+  </g>
+
+  <!-- Center: The Nexus Core -->
+  <g transform="translate(450, 100)">
+    <!-- Main Brain Orb -->
+    <circle cx="150" cy="200" r="100" fill="#2563EB" fill-opacity="0.1" stroke="#3B82F6" stroke-width="2" stroke-dasharray="10 5" filter="url(#glow)"/>
+    <circle cx="150" cy="200" r="70" fill="#3B82F6" fill-opacity="0.2"/>
+    <text x="150" y="195" text-anchor="middle" fill="#F8FAFC" font-family="Inter, sans-serif" font-size="18" font-weight="800">NEXUS</text>
+    <text x="150" y="215" text-anchor="middle" fill="#60A5FA" font-family="Inter, sans-serif" font-size="12" font-weight="600">AI ORCHESTRATOR</text>
+    
+    <!-- Moving Particles (Static for SVG) -->
+    <circle cx="80" cy="150" r="4" fill="#60A5FA"/>
+    <circle cx="220" cy="180" r="3" fill="#8B5CF6"/>
+    <circle cx="120" cy="270" r="5" fill="#10B981"/>
+  </g>
+
+  <!-- Right Side: Outputs -->
+  <g transform="translate(860, 150)">
+    <rect x="0" y="0" width="240" height="300" rx="16" fill="#1E293B" stroke="#334155" stroke-width="1"/>
+    <text x="20" y="30" fill="#94A3B8" font-family="Inter, sans-serif" font-size="12" font-weight="700">EXECUTION LAYER</text>
+    
+    <rect x="20" y="60" width="200" height="60" rx="12" fill="#1E293B" stroke="#10B981" stroke-width="2"/>
+    <text x="40" y="85" fill="#F8FAFC" font-family="Inter, sans-serif" font-size="14" font-weight="700">GitHub Draft PR</text>
+    <text x="40" y="105" fill="#94A3B8" font-family="Inter, sans-serif" font-size="10">Auto-generated code fix</text>
+    
+    <rect x="20" y="140" width="200" height="60" rx="12" fill="#1E293B" stroke="#F59E0B" stroke-width="2"/>
+    <text x="40" y="165" fill="#F8FAFC" font-family="Inter, sans-serif" font-size="14" font-weight="700">Security Alert</text>
+    <text x="40" y="185" fill="#94A3B8" font-family="Inter, sans-serif" font-size="10">Safety score & AST scan</text>
+    
+    <rect x="20" y="220" width="200" height="60" rx="12" fill="#1E293B" stroke="#8B5CF6" stroke-width="2"/>
+    <text x="40" y="245" fill="#F8FAFC" font-family="Inter, sans-serif" font-size="14" font-weight="700">Team Briefing</text>
+    <text x="40" y="265" fill="#94A3B8" font-family="Inter, sans-serif" font-size="10">Telegram Context Sync</text>
+  </g>
+
+  <!-- Connecting Lines with Gradients -->
+  <path d="M 340 200 L 450 240" stroke="url(#line_grad)" stroke-width="2"/>
+  <path d="M 340 250 L 450 280" stroke="url(#line_grad)" stroke-width="2"/>
+  <path d="M 340 350 L 450 320" stroke="url(#line_grad)" stroke-width="2"/>
+  
+  <path d="M 750 250 L 860 210" stroke="url(#line_grad)" stroke-width="2"/>
+  <path d="M 750 300 L 860 270" stroke="url(#line_grad)" stroke-width="2"/>
+  <path d="M 750 350 L 860 330" stroke="url(#line_grad)" stroke-width="2"/>
+
+  <!-- Subtitle -->
+  <text x="600" y="550" text-anchor="middle" fill="#475569" font-family="Inter, sans-serif" font-size="14" font-style="italic">NexusOps 2.0: Synchronizing Team Intelligence with System Resilience</text>
+</svg>

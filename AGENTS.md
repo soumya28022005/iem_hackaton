@@ -131,3 +131,23 @@ Available languages:
 - Storage: Upload files to buckets, store URLs in database
 - AI operations are OpenAI-compatible
 - **EXTRA IMPORTANT**: Use Tailwind CSS 3.4 (do not upgrade to v4). Lock these dependencies in `package.json`
+
+<claude-mem-context>
+# Memory Context
+
+# [NexusOp 2.0 Node.Js Backend] recent context, 2026-04-24 11:33am GMT+5:30
+
+Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
+Format: ID TIME TYPE TITLE
+Fetch details: get_observations([IDs]) | Search: mem-search skill
+
+Stats: 1 obs (46t read) | 22,402t work | 100% savings
+
+### Apr 24, 2026
+S3 Apply Impersonation to Existing Bash Command in Worktree (Apr 24 at 10:12 AM)
+S1 Apply Impersonation to Existing Bash Command in Worktree (Apr 24 at 10:12 AM)
+S4 Understanding Caveman Help Request (Apr 24 at 10:17 AM)
+9 10:22a 🟣 Claude Code Agent Launched
+
+Access 22k tokens of past work via get_observations([IDs]) or mem-search skill.
+</claude-mem-context>

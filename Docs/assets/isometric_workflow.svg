@@ -1,0 +1,59 @@
+<svg width="1200" height="600" viewBox="0 0 1200 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="glass_blur" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feFlood flood-color="#FFFFFF" flood-opacity="0.05" result="white_tint"/>
+      <feComposite in="white_tint" in2="blur" operator="in" result="tinted_blur"/>
+      <feComposite in="SourceGraphic" in2="tinted_blur" operator="over"/>
+    </filter>
+    <linearGradient id="neon_blue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60A5FA"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+    <linearGradient id="neon_purple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C084FC"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="600" rx="24" fill="#020617"/>
+  
+  <!-- Isometric Grid Background (Subtle) -->
+  <path d="M 0 100 L 1200 100 M 0 200 L 1200 200 M 0 300 L 1200 300 M 0 400 L 1200 400 M 0 500 L 1200 500" stroke="#1E293B" stroke-width="1" stroke-opacity="0.5"/>
+  <path d="M 100 0 L 100 600 M 200 0 L 200 600 M 300 0 L 300 600 M 400 0 L 400 600 M 500 0 L 500 600 M 600 0 L 600 600 M 700 0 L 700 600 M 800 0 L 800 600 M 900 0 L 900 600 M 1000 0 L 1000 600 M 1100 0 L 1100 600" stroke="#1E293B" stroke-width="1" stroke-opacity="0.5"/>
+
+  <!-- Step 1: Ingestion -->
+  <g transform="translate(100, 250) skewY(-15)">
+    <rect x="0" y="0" width="180" height="120" rx="16" fill="#1E293B" fill-opacity="0.8" stroke="url(#neon_blue)" stroke-width="2" filter="url(#glass_blur)"/>
+    <text x="20" y="40" fill="#F8FAFC" font-family="Inter, sans-serif" font-size="16" font-weight="800">INGESTION</text>
+    <text x="20" y="70" fill="#94A3B8" font-family="Inter, sans-serif" font-size="12">Sentry & Telegram</text>
+    <path d="M 180 60 L 240 60" stroke="#3B82F6" stroke-width="3" stroke-dasharray="8 4"/>
+  </g>
+
+  <!-- Step 2: Analysis -->
+  <g transform="translate(350, 200) skewY(-15)">
+    <rect x="0" y="0" width="180" height="120" rx="16" fill="#1E293B" fill-opacity="0.8" stroke="url(#neon_purple)" stroke-width="2" filter="url(#glass_blur)"/>
+    <text x="20" y="40" fill="#F8FAFC" font-family="Inter, sans-serif" font-size="16" font-weight="800">ANALYSIS</text>
+    <text x="20" y="70" fill="#94A3B8" font-family="Inter, sans-serif" font-size="12">Root Cause Engine</text>
+    <path d="M 180 60 L 240 60" stroke="#8B5CF6" stroke-width="3" stroke-dasharray="8 4"/>
+  </g>
+
+  <!-- Step 3: Nexus Link -->
+  <g transform="translate(600, 150) skewY(-15)">
+    <rect x="0" y="0" width="220" height="150" rx="16" fill="#1E293B" fill-opacity="0.9" stroke="#F59E0B" stroke-width="3" filter="url(#glass_blur)"/>
+    <circle cx="110" cy="75" r="40" fill="#F59E0B" fill-opacity="0.1" stroke="#F59E0B" stroke-dasharray="5 5"/>
+    <text x="110" y="80" text-anchor="middle" fill="#F8FAFC" font-family="Inter, sans-serif" font-size="14" font-weight="800">NEXUS LINK</text>
+    <text x="110" y="100" text-anchor="middle" fill="#94A3B8" font-family="Inter, sans-serif" font-size="10">Memory Enrichment</text>
+    <path d="M 220 75 L 280 75" stroke="#F59E0B" stroke-width="3" stroke-dasharray="8 4"/>
+  </g>
+
+  <!-- Step 4: Resolution -->
+  <g transform="translate(880, 100) skewY(-15)">
+    <rect x="0" y="0" width="180" height="120" rx="16" fill="#1E293B" fill-opacity="0.8" stroke="#10B981" stroke-width="2" filter="url(#glass_blur)"/>
+    <text x="20" y="40" fill="#F8FAFC" font-family="Inter, sans-serif" font-size="16" font-weight="800">RESOLUTION</text>
+    <text x="20" y="70" fill="#94A3B8" font-family="Inter, sans-serif" font-size="12">GitHub Draft PR</text>
+  </g>
+
+  <!-- Header Text -->
+  <text x="600" y="550" text-anchor="middle" fill="#F8FAFC" font-family="Inter, sans-serif" font-size="32" font-weight="900" letter-spacing="10" filter="url(#glass_blur)">AUTO-REMEDIATION ARCHITECTURE</text>
+</svg>

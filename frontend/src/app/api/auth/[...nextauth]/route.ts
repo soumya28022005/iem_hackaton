@@ -25,7 +25,14 @@ const authOptions: NextAuthOptions = {
             body: JSON.stringify({ id_token: credentials.idToken }),
           });
 
-          if (!res.ok) return null;
+          if (!res.ok) {
+            const errorBody = await res.json().catch(() => null);
+            console.error("Firebase backend auth failed:", {
+              status: res.status,
+              error: errorBody?.error || res.statusText,
+            });
+            return null;
+          }
 
           const data = await res.json();
           return {

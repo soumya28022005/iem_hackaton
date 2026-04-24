@@ -8,6 +8,7 @@
 
 Load these files at every session start:
 - `CLAUDE.md` (~450 tokens)
+- `SYSTEM_BLUEPRINT.md` (Engineering Overview & Architecture)
 - `.claude/COMMON_MISTAKES.md` (~350 tokens)
 - `.claude/QUICK_START.md` (~100 tokens)
 - `.claude/ARCHITECTURE_MAP.md` (~150 tokens)

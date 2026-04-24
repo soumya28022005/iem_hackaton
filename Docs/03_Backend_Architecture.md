@@ -1,486 +1,881 @@
-# NexusOps — Backend Architecture
+# NexusOps — Backend Architecture (Node.js + LangChain + RAG)
+
+> **Stack:** Express.js · TypeScript · LangChain.js · PostgreSQL + pgvector · BullMQ · Redis · Prisma ORM · Anthropic Claude API · OpenAI Embeddings
+
+---
 
 ## 1. Project Structure
 
 ```
 backend/
-├── app/
-│   ├── main.py                        # FastAPI entry, all routers registered
-│   ├── config.py                      # Pydantic Settings
-│   ├── database.py                    # Async SQLAlchemy engine + session
-│   ├── dependencies.py                # get_db, get_current_user, get_workspace
+├── src/
+│   ├── index.ts                          # Express entry, all routers registered
+│   ├── config.ts                         # Zod-validated env config
+│   ├── prisma.ts                         # Prisma client singleton
+│   ├── middleware/
+│   │   ├── auth.middleware.ts            # JWT verify + attach user
+│   │   ├── workspace.middleware.ts       # Attach workspace from param
+│   │   └── error.middleware.ts           # Global error handler
 │   │
 │   ├── routers/
-│   │   ├── auth.py                    # Login, GitHub OAuth callback
-│   │   ├── workspace.py               # Workspace CRUD + members
-│   │   ├── webhooks.py                # Telegram, Sentry, deploy webhooks
+│   │   ├── auth.router.ts               # Login, GitHub OAuth callback
+│   │   ├── workspace.router.ts          # Workspace CRUD + members
+│   │   ├── webhooks.router.ts           # Telegram, Sentry, deploy webhooks
 │   │   │
-│   │   ├── memory/                    # Memory Engine routes
-│   │   │   ├── __init__.py
-│   │   │   ├── ingest.py              # Source ingestion endpoints
-│   │   │   ├── query.py               # RAG Q&A, semantic search
-│   │   │   ├── tasks.py               # Detected tasks + Jira
-│   │   │   └── problems.py            # Recurring problem detection
+│   │   ├── memory/
+│   │   │   ├── ingest.router.ts         # Source ingestion endpoints
+│   │   │   ├── query.router.ts          # RAG Q&A, semantic search
+│   │   │   ├── tasks.router.ts          # Detected tasks + Jira
+│   │   │   └── problems.router.ts       # Recurring problem detection
 │   │   │
-│   │   └── autofix/                   # AutoFix Engine routes
-│   │       ├── __init__.py
-│   │       ├── repos.py               # GitHub repo connect/list
-│   │       ├── incidents.py           # Incident CRUD + pipeline trigger
-│   │       ├── fixes.py               # Fix review, approve, dismiss
-│   │       └── revert.py              # Auto-revert config + history
+│   │   └── autofix/
+│   │       ├── repos.router.ts          # GitHub repo connect/list
+│   │       ├── incidents.router.ts      # Incident CRUD + pipeline trigger
+│   │       ├── fixes.router.ts          # Fix review, approve, dismiss
+│   │       └── revert.router.ts         # Auto-revert config + history
 │   │
 │   ├── services/
-│   │   ├── auth_service.py
-│   │   ├── workspace_service.py
+│   │   ├── auth.service.ts
+│   │   ├── workspace.service.ts
 │   │   │
 │   │   ├── memory/
-│   │   │   ├── ingestion_service.py   # Orchestrates ingestion pipeline
-│   │   │   ├── transcription_service.py  # Whisper STT
-│   │   │   ├── chunking_service.py    # Semantic chunking
-│   │   │   ├── embedding_service.py   # OpenAI embeddings
-│   │   │   ├── rag_service.py         # Q&A RAG pipeline
-│   │   │   ├── task_detection_service.py
-│   │   │   ├── problem_detection_service.py
-│   │   │   └── jira_service.py
+│   │   │   ├── ingestion.service.ts     # Orchestrates ingestion pipeline
+│   │   │   ├── transcription.service.ts # Whisper STT
+│   │   │   ├── chunking.service.ts      # LangChain RecursiveTextSplitter
+│   │   │   ├── embedding.service.ts     # OpenAI embeddings via LangChain
+│   │   │   ├── rag.service.ts           # LangChain RAG chain (core)
+│   │   │   ├── taskDetection.service.ts
+│   │   │   ├── problemDetection.service.ts
+│   │   │   └── jira.service.ts
 │   │   │
 │   │   ├── autofix/
-│   │   │   ├── sanitization_service.py   # PII / secret stripping
-│   │   │   ├── analysis_service.py        # Claude root cause
-│   │   │   ├── fix_generation_service.py  # Claude fix generation
-│   │   │   ├── safety_check_service.py    # AST + pattern check
-│   │   │   ├── pr_service.py              # GitHub draft PR
-│   │   │   └── revert_service.py          # Vercel/Railway revert
+│   │   │   ├── sanitization.service.ts  # PII / secret stripping
+│   │   │   ├── analysis.service.ts      # Claude root cause (LangChain chain)
+│   │   │   ├── fixGeneration.service.ts # Claude fix generation chain
+│   │   │   ├── safetyCheck.service.ts   # AST + pattern check
+│   │   │   ├── pr.service.ts            # GitHub draft PR
+│   │   │   └── revert.service.ts        # Vercel/Railway revert
 │   │   │
 │   │   └── nexus/
-│   │       ├── memory_enrichment_service.py  # Integration: memory → PR
-│   │       ├── notification_service.py       # Telegram + email alerts
-│   │       └── dashboard_service.py          # Unified stats
-│   │
-│   ├── models/                        # SQLAlchemy ORM models
-│   │   ├── user.py
-│   │   ├── workspace.py
-│   │   ├── source.py                  # Memory: ingested sources
-│   │   ├── document_chunk.py          # Memory: vector chunks
-│   │   ├── task.py                    # Memory: detected tasks
-│   │   ├── problem.py                 # Memory: recurring issues
-│   │   ├── repository.py              # AutoFix: GitHub repos
-│   │   ├── incident.py                # AutoFix: crash incidents
-│   │   ├── fix.py                     # AutoFix: AI-generated fixes
-│   │   └── revert_event.py            # AutoFix: revert log
-│   │
-│   ├── schemas/                       # Pydantic request/response models
-│   │   ├── auth.py
-│   │   ├── workspace.py
-│   │   ├── memory/
-│   │   │   ├── ingest.py
-│   │   │   ├── query.py
-│   │   │   └── tasks.py
-│   │   └── autofix/
-│   │       ├── incident.py
-│   │       ├── fix.py
-│   │       └── webhook.py
+│   │       ├── memoryEnrichment.service.ts  # Integration: memory → PR
+│   │       ├── notification.service.ts      # Telegram + email alerts
+│   │       └── dashboard.service.ts         # Unified stats
 │   │
 │   ├── workers/
-│   │   ├── celery_app.py              # Celery app + queue config + beat schedule
-│   │   ├── memory_worker.py           # Ingestion + detection jobs
-│   │   └── autofix_worker.py          # Fix pipeline job
+│   │   ├── queue.ts                     # BullMQ queue + worker setup
+│   │   ├── memory.worker.ts             # Ingestion + detection jobs
+│   │   └── autofix.worker.ts            # Fix pipeline job
 │   │
 │   ├── integrations/
-│   │   ├── telegram_bot.py            # Bot setup + message handlers
-│   │   ├── github_client.py           # All GitHub API operations
-│   │   ├── anthropic_client.py        # Claude API wrapper
-│   │   ├── whisper_client.py          # Whisper STT client
-│   │   ├── jira_client.py             # Jira REST API
-│   │   ├── vercel_client.py           # Vercel deploy API
-│   │   └── railway_client.py          # Railway deploy API
+│   │   ├── telegramBot.ts               # Telegraf bot setup + handlers
+│   │   ├── githubClient.ts              # Octokit GitHub API wrapper
+│   │   ├── anthropicClient.ts           # LangChain ChatAnthropic wrapper
+│   │   ├── whisperClient.ts             # OpenAI Whisper STT client
+│   │   ├── jiraClient.ts                # Jira REST API
+│   │   ├── vercelClient.ts              # Vercel deploy API
+│   │   └── railwayClient.ts             # Railway deploy API
 │   │
 │   └── utils/
-│       ├── chunker.py                 # Semantic chunking logic
-│       ├── text_extractor.py          # PDF / DOCX / MD text extraction
-│       ├── sanitizer.py               # PII + secret stripping
-│       ├── stack_trace_parser.py      # Parse file paths from stack traces
-│       ├── diff_utils.py              # Unified diff generation
-│       ├── safety_checker.py          # AST + pattern safety check
-│       └── prompt_builder.py          # All prompt construction functions
+│       ├── chunker.ts                   # LangChain splitter helpers
+│       ├── textExtractor.ts             # PDF / DOCX / MD text extraction
+│       ├── sanitizer.ts                 # PII + secret stripping
+│       ├── stackTraceParser.ts          # Parse file paths from stack traces
+│       ├── diffUtils.ts                 # Unified diff generation
+│       ├── safetyChecker.ts             # AST + pattern safety check
+│       └── promptBuilder.ts            # LangChain PromptTemplate builders
 │
-├── alembic/
-│   └── versions/
-│       ├── 001_initial_schema.py
-│       └── 002_add_nexus_integration.py
+├── prisma/
+│   ├── schema.prisma                    # All models + pgvector extension
+│   └── migrations/
+│       ├── 001_initial_schema/
+│       └── 002_add_nexus_integration/
+│
 ├── tests/
 ├── Dockerfile
 ├── docker-compose.yml
-└── requirements.txt
+├── package.json
+└── tsconfig.json
 ```
 
 ---
 
-## 2. main.py — Router Registration
+## 2. Dependencies (`package.json`)
 
-```python
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, workspace, webhooks
-from app.routers.memory import ingest, query, tasks, problems
-from app.routers.autofix import repos, incidents, fixes, revert
-
-app = FastAPI(title="NexusOps API", version="1.0.0")
-
-app.add_middleware(CORSMiddleware, allow_origins=["https://nexusops.dev"])
-
-# Core
-app.include_router(auth.router,       prefix="/api/v1/auth",      tags=["auth"])
-app.include_router(workspace.router,  prefix="/api/v1/workspace",  tags=["workspace"])
-app.include_router(webhooks.router,   prefix="/webhook",           tags=["webhooks"])
-
-# Memory Engine
-app.include_router(ingest.router,    prefix="/api/v1/memory/ingest",   tags=["memory"])
-app.include_router(query.router,     prefix="/api/v1/memory",          tags=["memory"])
-app.include_router(tasks.router,     prefix="/api/v1/memory/tasks",    tags=["memory"])
-app.include_router(problems.router,  prefix="/api/v1/memory/problems", tags=["memory"])
-
-# AutoFix Engine
-app.include_router(repos.router,      prefix="/api/v1/autofix/repos",     tags=["autofix"])
-app.include_router(incidents.router,  prefix="/api/v1/autofix/incidents", tags=["autofix"])
-app.include_router(fixes.router,      prefix="/api/v1/autofix/fixes",     tags=["autofix"])
-app.include_router(revert.router,     prefix="/api/v1/autofix/revert",    tags=["autofix"])
-
-@app.get("/health")
-async def health():
-    return {"status": "ok", "version": "1.0.0"}
+```json
+{
+  "dependencies": {
+    "@langchain/anthropic": "^0.3.0",
+    "@langchain/community": "^0.3.0",
+    "@langchain/core": "^0.3.0",
+    "@langchain/openai": "^0.3.0",
+    "@octokit/rest": "^21.0.0",
+    "@prisma/client": "^5.22.0",
+    "bullmq": "^5.0.0",
+    "express": "^4.21.0",
+    "ioredis": "^5.4.0",
+    "langchain": "^0.3.0",
+    "telegraf": "^4.16.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "prisma": "^5.22.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.6.0"
+  }
+}
 ```
 
 ---
 
-## 3. Memory Engine: RAG Service (Core Logic)
+## 3. Entry Point (`src/index.ts`)
 
-```python
-# services/memory/rag_service.py
+```typescript
+import express from "express";
+import cors from "cors";
+import { authRouter } from "./routers/auth.router";
+import { workspaceRouter } from "./routers/workspace.router";
+import { webhooksRouter } from "./routers/webhooks.router";
+import { ingestRouter } from "./routers/memory/ingest.router";
+import { queryRouter } from "./routers/memory/query.router";
+import { tasksRouter } from "./routers/memory/tasks.router";
+import { problemsRouter } from "./routers/memory/problems.router";
+import { reposRouter } from "./routers/autofix/repos.router";
+import { incidentsRouter } from "./routers/autofix/incidents.router";
+import { fixesRouter } from "./routers/autofix/fixes.router";
+import { revertRouter } from "./routers/autofix/revert.router";
+import { errorMiddleware } from "./middleware/error.middleware";
+import { startWorkers } from "./workers/queue";
 
-SYSTEM_PROMPT = """You are NexusOps Memory, an intelligent knowledge assistant for engineering teams.
+const app = express();
+app.use(express.json());
+app.use(cors({ origin: "https://nexusops.dev" }));
 
-You answer questions about team decisions, discussions, and tasks based ONLY on provided context.
+// Core
+app.use("/api/v1/auth",      authRouter);
+app.use("/api/v1/workspace", workspaceRouter);
+app.use("/webhook",          webhooksRouter);
+
+// Memory Engine
+app.use("/api/v1/memory/ingest",    ingestRouter);
+app.use("/api/v1/memory",           queryRouter);
+app.use("/api/v1/memory/tasks",     tasksRouter);
+app.use("/api/v1/memory/problems",  problemsRouter);
+
+// AutoFix Engine
+app.use("/api/v1/autofix/repos",     reposRouter);
+app.use("/api/v1/autofix/incidents", incidentsRouter);
+app.use("/api/v1/autofix/fixes",     fixesRouter);
+app.use("/api/v1/autofix/revert",    revertRouter);
+
+app.get("/health", (_req, res) => res.json({ status: "ok", version: "1.0.0" }));
+app.use(errorMiddleware);
+
+app.listen(8000, () => console.log("NexusOps API running on :8000"));
+startWorkers(); // Boot BullMQ workers
+```
+
+---
+
+## 4. Prisma Schema (`prisma/schema.prisma`)
+
+```prisma
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector")]
+}
+
+model Workspace {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  members   WorkspaceMember[]
+  sources   Source[]
+  chunks    DocumentChunk[]
+  tasks     Task[]
+  problems  Problem[]
+  incidents Incident[]
+}
+
+model DocumentChunk {
+  id          String   @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  sourceId    String
+  source      Source    @relation(fields: [sourceId], references: [id])
+  text        String
+  embedding   Unsupported("vector(1536)")
+  sourceType  String
+  sender      String?
+  channelName String?
+  timestamp   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId])
+}
+
+model Incident {
+  id           String    @id @default(uuid())
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id])
+  repositoryId String
+  repository   Repository @relation(fields: [repositoryId], references: [id])
+  errorType    String
+  errorMessage String
+  rawStackTrace String
+  severity     String
+  branch       String    @default("main")
+  status       String    @default("pending")
+  prUrl        String?
+  createdAt    DateTime  @default(now())
+  fix          Fix?
+}
+
+// ... remaining models: User, Source, Task, Problem, Repository, Fix, RevertEvent
+```
+
+---
+
+## 5. Memory Engine: RAG Service — LangChain Core
+
+```typescript
+// src/services/memory/rag.service.ts
+
+import { ChatAnthropic } from "@langchain/anthropic";
+import { OpenAIEmbeddings } from "@langchain/openai";
+import { PGVectorStore } from "@langchain/community/vectorstores/pgvector";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { RunnableSequence, RunnablePassthrough } from "@langchain/core/runnables";
+import { createStuffDocumentsChain } from "langchain/chains/combine_documents";
+import { createRetrievalChain } from "langchain/chains/retrieval";
+import { prisma } from "../../prisma";
+import { config } from "../../config";
+
+const SYSTEM_PROMPT = `You are NexusOps Memory, an intelligent knowledge assistant for engineering teams.
+
+You answer questions about team decisions, discussions, and tasks based ONLY on the provided context.
 
 Rules:
 1. Only use information from the provided context.
-2. Always cite source: [Source: {type} | {date} | {sender}]
+2. Always cite source: [Source: {{type}} | {{date}} | {{sender}}]
 3. If not found: "I couldn't find this in your team's records."
 4. For decisions: include the rationale if mentioned.
-5. Be concise (2-4 sentences) unless the question demands detail."""
+5. Be concise (2-4 sentences) unless the question demands detail.
 
-class RAGService:
-    async def query(self, workspace_id: str, question: str) -> QueryResponse:
-        # 1. Embed question
-        q_embedding = await embedding_service.embed_single(question)
-        
-        # 2. pgvector search — top 8 chunks, cosine similarity > 0.65
-        chunks = await db.execute("""
-            SELECT id, text, source_type, sender, timestamp, channel_name,
-                   1 - (embedding <=> $1) AS similarity
-            FROM document_chunks
-            WHERE workspace_id = $2 AND 1 - (embedding <=> $1) > 0.65
-            ORDER BY embedding <=> $1
-            LIMIT 8
-        """, [q_embedding, workspace_id])
-        
-        if not chunks:
-            return QueryResponse(
-                answer="I couldn't find relevant info in your team's records.",
-                sources=[]
-            )
-        
-        # 3. Build context
-        context = "\n\n---\n\n".join([
-            f"[{i+1}] {c.source_type} | {c.timestamp} | {c.sender or 'Unknown'}\n{c.text}"
-            for i, c in enumerate(chunks)
-        ])
-        
-        # 4. Claude call
-        response = await anthropic.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=1000,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"}]
-        )
-        
-        return QueryResponse(
-            answer=response.content[0].text,
-            sources=[chunk_to_source(c) for c in chunks[:3]],
-            latency_ms=int((time.time() - start) * 1000)
-        )
+Context:
+{context}`;
+
+const llm = new ChatAnthropic({
+  model: "claude-sonnet-4-20250514",
+  maxTokens: 1000,
+  anthropicApiKey: config.ANTHROPIC_API_KEY,
+});
+
+const embeddings = new OpenAIEmbeddings({
+  model: "text-embedding-3-small",
+  openAIApiKey: config.OPENAI_API_KEY,
+});
+
+export class RAGService {
+  private async getVectorStore(workspaceId: string): Promise<PGVectorStore> {
+    return PGVectorStore.initialize(embeddings, {
+      postgresConnectionOptions: { connectionString: config.DATABASE_URL },
+      tableName: "document_chunks",
+      columns: {
+        idColumnName: "id",
+        vectorColumnName: "embedding",
+        contentColumnName: "text",
+        metadataColumnName: "metadata",
+      },
+      filter: { workspaceId },
+    });
+  }
+
+  async query(workspaceId: string, question: string) {
+    const vectorStore = await this.getVectorStore(workspaceId);
+
+    // Retriever with similarity score threshold
+    const retriever = vectorStore.asRetriever({
+      k: 8,
+      searchType: "similarity",
+      searchKwargs: { scoreThreshold: 0.65 },
+    });
+
+    const prompt = ChatPromptTemplate.fromMessages([
+      ["system", SYSTEM_PROMPT],
+      ["human", "{input}"],
+    ]);
+
+    // LangChain LCEL chain: retriever → stuff docs → Claude
+    const questionAnswerChain = await createStuffDocumentsChain({ llm, prompt });
+    const ragChain = await createRetrievalChain({
+      retriever,
+      combineDocsChain: questionAnswerChain,
+    });
+
+    const start = Date.now();
+    const result = await ragChain.invoke({ input: question });
+
+    if (!result.context?.length) {
+      return {
+        answer: "I couldn't find relevant info in your team's records.",
+        sources: [],
+        latencyMs: Date.now() - start,
+      };
+    }
+
+    return {
+      answer: result.answer,
+      sources: result.context.slice(0, 3).map((doc) => ({
+        text: doc.pageContent.slice(0, 200),
+        sourceType: doc.metadata.sourceType,
+        sender: doc.metadata.sender,
+        timestamp: doc.metadata.timestamp,
+      })),
+      latencyMs: Date.now() - start,
+    };
+  }
+}
+
+export const ragService = new RAGService();
 ```
 
 ---
 
-## 4. AutoFix Engine: Fix Pipeline Worker (Core Logic)
+## 6. Memory Engine: Ingestion + Chunking Service
 
-```python
-# workers/autofix_worker.py
+```typescript
+// src/services/memory/chunking.service.ts
 
-@celery_app.task(name="autofix.process_incident", queue="default", max_retries=2)
-async def process_incident(incident_id: str):
-    incident = await db.get_incident(incident_id)
-    
-    try:
-        # Step 1: Sanitize
-        await set_status(incident_id, "sanitizing")
-        sanitized = await sanitization_service.sanitize(
-            incident.raw_error, incident.raw_stack_trace
-        )
-        
-        # Step 2: Fetch code from GitHub
-        await set_status(incident_id, "fetching_code")
-        file_refs = stack_trace_parser.extract_files(sanitized.stack_trace)
-        code_snippets = await github_client.fetch_code_context(
-            incident.repository.full_name, file_refs, incident.branch
-        )
-        
-        # Step 3: Root cause analysis
-        await set_status(incident_id, "analyzing")
-        analysis = await analysis_service.analyze(
-            sanitized.error, sanitized.stack_trace, code_snippets
-        )
-        
-        # *** NEXUS INTEGRATION: Query Memory Engine ***
-        await set_status(incident_id, "querying_memory")
-        memory_context = await memory_enrichment_service.get_context(
-            workspace_id=incident.workspace_id,
-            error_keywords=analysis.keywords,
-            affected_files=analysis.affected_files
-        )
-        
-        # Step 4: Fix generation
-        await set_status(incident_id, "generating_fix")
-        fix = await fix_generation_service.generate(analysis, code_snippets)
-        
-        # Step 5: Safety check
-        safety = await safety_check_service.check(fix)
-        if safety.score == "BLOCKED":
-            await set_status(incident_id, "fix_blocked")
-            await notification_service.notify_blocked(incident, safety)
-            return
-        
-        # Step 6: Create draft PR (memory context injected here)
-        await set_status(incident_id, "creating_pr")
-        pr_url = await pr_service.create_draft_pr(
-            repo=incident.repository.full_name,
-            fix=fix,
-            analysis=analysis,
-            memory_context=memory_context,  # ← NexusOps magic
-            safety_report=safety,
-            incident=incident
-        )
-        
-        # Step 7: Finalize + notify
-        await set_status(incident_id, "pr_created", pr_url=pr_url)
-        await notification_service.notify_pr_created(incident, pr_url, analysis, memory_context)
-        
-    except Exception as e:
-        await set_status(incident_id, "failed", error=str(e))
-        await notification_service.notify_failure(incident, str(e))
+import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import { Document } from "@langchain/core/documents";
+import { OpenAIEmbeddings } from "@langchain/openai";
+import { PGVectorStore } from "@langchain/community/vectorstores/pgvector";
+import { config } from "../../config";
+
+const splitter = new RecursiveCharacterTextSplitter({
+  chunkSize: 1000,
+  chunkOverlap: 150,
+  separators: ["\n\n", "\n", ". ", "! ", "? ", " "],
+});
+
+const embeddings = new OpenAIEmbeddings({
+  model: "text-embedding-3-small",
+  openAIApiKey: config.OPENAI_API_KEY,
+});
+
+export class ChunkingService {
+  async ingestText(
+    text: string,
+    metadata: {
+      workspaceId: string;
+      sourceId: string;
+      sourceType: string;
+      sender?: string;
+      channelName?: string;
+      timestamp: Date;
+    }
+  ): Promise<number> {
+    // 1. Split into semantic chunks
+    const docs = await splitter.createDocuments(
+      [text],
+      [metadata]
+    );
+
+    // 2. Upsert into pgvector via LangChain
+    const vectorStore = await PGVectorStore.initialize(embeddings, {
+      postgresConnectionOptions: { connectionString: config.DATABASE_URL },
+      tableName: "document_chunks",
+      columns: {
+        idColumnName: "id",
+        vectorColumnName: "embedding",
+        contentColumnName: "text",
+        metadataColumnName: "metadata",
+      },
+    });
+
+    await vectorStore.addDocuments(docs);
+    return docs.length;
+  }
+
+  async ingestDocuments(docs: Document[]): Promise<void> {
+    const vectorStore = await PGVectorStore.initialize(embeddings, {
+      postgresConnectionOptions: { connectionString: config.DATABASE_URL },
+      tableName: "document_chunks",
+    });
+    await vectorStore.addDocuments(docs);
+  }
+}
+
+export const chunkingService = new ChunkingService();
 ```
 
 ---
 
-## 5. NexusOps Integration: Memory Enrichment Service
+## 7. AutoFix Engine: Analysis + Fix Generation (LangChain Chains)
 
-```python
-# services/nexus/memory_enrichment_service.py
+```typescript
+// src/services/autofix/analysis.service.ts
 
-class MemoryEnrichmentService:
-    """
-    Queries the Memory Engine using AutoFix incident context.
-    Finds relevant past discussions about the error or affected code.
-    """
-    
-    async def get_context(
-        self,
-        workspace_id: str,
-        error_keywords: List[str],
-        affected_files: List[dict]
-    ) -> MemoryContext | None:
-        
-        if not workspace_id:
-            return None
-        
-        # Build search query from error context
-        file_names = [f["path"].split("/")[-1] for f in affected_files]
-        search_query = " ".join(error_keywords[:5] + file_names[:3])
-        
-        # Query the Memory Engine's vector store
-        embedding = await embedding_service.embed_single(search_query)
-        
-        chunks = await db.execute("""
-            SELECT text, source_type, sender, timestamp,
-                   1 - (embedding <=> $1) AS similarity
-            FROM document_chunks
-            WHERE workspace_id = $2 AND 1 - (embedding <=> $1) > 0.60
-            ORDER BY embedding <=> $1
-            LIMIT 5
-        """, [embedding, workspace_id])
-        
-        if not chunks or chunks[0].similarity < 0.60:
-            return None
-        
-        return MemoryContext(
-            found=True,
-            chunks=[{
-                "text": c.text[:300],
-                "source": f"{c.source_type} | {c.timestamp} | {c.sender}",
-                "similarity": round(c.similarity, 2)
-            } for c in chunks[:3]],
-            summary=await self._summarize(chunks, search_query)
-        )
-    
-    async def _summarize(self, chunks, query: str) -> str:
-        """Ask Claude to briefly summarize what the team said about this."""
-        context = "\n\n".join([c.text for c in chunks])
-        response = await anthropic.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=200,
-            messages=[{
-                "role": "user",
-                "content": f"Context from team discussions:\n{context}\n\n"
-                           f"In 1-2 sentences, what did the team previously say about: {query}?"
-            }]
-        )
-        return response.content[0].text
+import { ChatAnthropic } from "@langchain/anthropic";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { JsonOutputParser } from "@langchain/core/output_parsers";
+import { RunnableSequence } from "@langchain/core/runnables";
+import { config } from "../../config";
+
+const llm = new ChatAnthropic({
+  model: "claude-sonnet-4-20250514",
+  maxTokens: 2000,
+  anthropicApiKey: config.ANTHROPIC_API_KEY,
+});
+
+const analysisPrompt = ChatPromptTemplate.fromTemplate(`
+You are an expert software engineer performing root cause analysis.
+
+Error: {errorMessage}
+Stack Trace:
+{stackTrace}
+
+Relevant Code:
+{codeSnippets}
+
+Respond ONLY with a valid JSON object:
+{{
+  "rootCause": "concise description",
+  "explanation": "detailed explanation",
+  "affectedFiles": [{{ "path": "...", "lines": [n, m] }}],
+  "keywords": ["keyword1", "keyword2"],
+  "confidence": 0.0-1.0
+}}
+`);
+
+const fixPrompt = ChatPromptTemplate.fromTemplate(`
+You are an expert software engineer generating a precise bug fix.
+
+Root Cause: {rootCause}
+Explanation: {explanation}
+
+Code to Fix:
+{codeSnippets}
+
+Team Memory Context (if available):
+{memoryContext}
+
+Respond ONLY with a valid JSON object:
+{{
+  "explanation": "what and why",
+  "fileChanges": [{{
+    "path": "...",
+    "originalCode": "...",
+    "fixedCode": "...",
+    "explanation": "..."
+  }}],
+  "confidence": 0.0-1.0
+}}
+`);
+
+// LCEL chain: prompt | llm | json parser
+export const analysisChain = RunnableSequence.from([
+  analysisPrompt,
+  llm,
+  new JsonOutputParser(),
+]);
+
+export const fixGenerationChain = RunnableSequence.from([
+  fixPrompt,
+  llm,
+  new JsonOutputParser(),
+]);
 ```
 
 ---
 
-## 6. PR Body Builder (with Memory Context)
+## 8. NexusOps Integration: Memory Enrichment Service
 
-```python
-# utils/prompt_builder.py
+```typescript
+// src/services/nexus/memoryEnrichment.service.ts
 
-def build_pr_body(fix, analysis, memory_context, safety_report, incident) -> str:
-    memory_section = ""
-    if memory_context and memory_context.found:
-        memory_section = f"""
+import { OpenAIEmbeddings } from "@langchain/openai";
+import { PGVectorStore } from "@langchain/community/vectorstores/pgvector";
+import { ChatAnthropic } from "@langchain/anthropic";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { config } from "../../config";
+
+export interface MemoryContext {
+  found: boolean;
+  chunks: Array<{ text: string; source: string; similarity: number }>;
+  summary: string;
+}
+
+const llm = new ChatAnthropic({
+  model: "claude-sonnet-4-20250514",
+  maxTokens: 200,
+  anthropicApiKey: config.ANTHROPIC_API_KEY,
+});
+
+const summaryChain = RunnableSequence.from([
+  ChatPromptTemplate.fromTemplate(
+    `Context from team discussions:\n{context}\n\nIn 1-2 sentences, what did the team previously say about: {query}?`
+  ),
+  llm,
+  new StringOutputParser(),
+]);
+
+export class MemoryEnrichmentService {
+  /**
+   * Queries Memory Engine using AutoFix incident context.
+   * Finds relevant past discussions about the error or affected code.
+   */
+  async getContext(
+    workspaceId: string,
+    errorKeywords: string[],
+    affectedFiles: Array<{ path: string }>
+  ): Promise<MemoryContext | null> {
+    if (!workspaceId) return null;
+
+    const fileNames = affectedFiles.map((f) => f.path.split("/").pop() ?? "");
+    const searchQuery = [...errorKeywords.slice(0, 5), ...fileNames.slice(0, 3)].join(" ");
+
+    const embeddings = new OpenAIEmbeddings({
+      model: "text-embedding-3-small",
+      openAIApiKey: config.OPENAI_API_KEY,
+    });
+
+    const vectorStore = await PGVectorStore.initialize(embeddings, {
+      postgresConnectionOptions: { connectionString: config.DATABASE_URL },
+      tableName: "document_chunks",
+      columns: {
+        idColumnName: "id",
+        vectorColumnName: "embedding",
+        contentColumnName: "text",
+        metadataColumnName: "metadata",
+      },
+      filter: { workspaceId },
+    });
+
+    const results = await vectorStore.similaritySearchWithScore(searchQuery, 5);
+
+    // Filter by similarity threshold (0.60)
+    const filtered = results.filter(([, score]) => score >= 0.60);
+    if (!filtered.length) return null;
+
+    const chunks = filtered.slice(0, 3).map(([doc, score]) => ({
+      text: doc.pageContent.slice(0, 300),
+      source: `${doc.metadata.sourceType} | ${doc.metadata.timestamp} | ${doc.metadata.sender ?? "Unknown"}`,
+      similarity: Math.round(score * 100) / 100,
+    }));
+
+    const contextText = filtered.map(([doc]) => doc.pageContent).join("\n\n");
+    const summary = await summaryChain.invoke({ context: contextText, query: searchQuery });
+
+    return { found: true, chunks, summary };
+  }
+}
+
+export const memoryEnrichmentService = new MemoryEnrichmentService();
+```
+
+---
+
+## 9. AutoFix Pipeline Worker (BullMQ)
+
+```typescript
+// src/workers/autofix.worker.ts
+
+import { Worker, Queue } from "bullmq";
+import { redis } from "../integrations/redis";
+import { prisma } from "../prisma";
+import { sanitizationService } from "../services/autofix/sanitization.service";
+import { analysisChain, fixGenerationChain } from "../services/autofix/analysis.service";
+import { safetyCheckService } from "../services/autofix/safetyCheck.service";
+import { prService } from "../services/autofix/pr.service";
+import { memoryEnrichmentService } from "../services/nexus/memoryEnrichment.service";
+import { notificationService } from "../services/nexus/notification.service";
+import { stackTraceParser } from "../utils/stackTraceParser";
+import { githubClient } from "../integrations/githubClient";
+
+export const autofixQueue = new Queue("autofix", { connection: redis });
+
+const setStatus = (incidentId: string, status: string, extra?: object) =>
+  prisma.incident.update({ where: { id: incidentId }, data: { status, ...extra } });
+
+export const autofixWorker = new Worker(
+  "autofix",
+  async (job) => {
+    const { incidentId } = job.data;
+    const incident = await prisma.incident.findUniqueOrThrow({
+      where: { id: incidentId },
+      include: { repository: true },
+    });
+
+    try {
+      // Step 1: Sanitize
+      await setStatus(incidentId, "sanitizing");
+      const sanitized = await sanitizationService.sanitize(
+        incident.errorMessage,
+        incident.rawStackTrace
+      );
+
+      // Step 2: Fetch code from GitHub
+      await setStatus(incidentId, "fetching_code");
+      const fileRefs = stackTraceParser.extractFiles(sanitized.stackTrace);
+      const codeSnippets = await githubClient.fetchCodeContext(
+        incident.repository.fullName,
+        fileRefs,
+        incident.branch
+      );
+
+      // Step 3: Root cause analysis (LangChain chain)
+      await setStatus(incidentId, "analyzing");
+      const analysis = await analysisChain.invoke({
+        errorMessage: sanitized.error,
+        stackTrace: sanitized.stackTrace,
+        codeSnippets: JSON.stringify(codeSnippets),
+      });
+
+      // *** NEXUS INTEGRATION: Query Memory Engine ***
+      await setStatus(incidentId, "querying_memory");
+      const memoryContext = await memoryEnrichmentService.getContext(
+        incident.workspaceId,
+        analysis.keywords,
+        analysis.affectedFiles
+      );
+
+      // Step 4: Fix generation (LangChain chain with memory context)
+      await setStatus(incidentId, "generating_fix");
+      const fix = await fixGenerationChain.invoke({
+        rootCause: analysis.rootCause,
+        explanation: analysis.explanation,
+        codeSnippets: JSON.stringify(codeSnippets),
+        memoryContext: memoryContext?.summary ?? "No relevant team history found.",
+      });
+
+      // Step 5: Safety check
+      const safety = await safetyCheckService.check(fix);
+      if (safety.score === "BLOCKED") {
+        await setStatus(incidentId, "fix_blocked");
+        await notificationService.notifyBlocked(incident, safety);
+        return;
+      }
+
+      // Step 6: Create draft PR (memory context injected here)
+      await setStatus(incidentId, "creating_pr");
+      const prUrl = await prService.createDraftPR({
+        repo: incident.repository.fullName,
+        fix,
+        analysis,
+        memoryContext,   // ← NexusOps magic
+        safety,
+        incident,
+      });
+
+      // Step 7: Finalize + notify
+      await setStatus(incidentId, "pr_created", { prUrl });
+      await notificationService.notifyPRCreated(incident, prUrl, analysis, memoryContext);
+
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await setStatus(incidentId, "failed");
+      await notificationService.notifyFailure(incident, message);
+      throw err; // BullMQ handles retry
+    }
+  },
+  {
+    connection: redis,
+    concurrency: 5,
+    defaultJobOptions: { attempts: 2, backoff: { type: "exponential", delay: 5000 } },
+  }
+);
+```
+
+---
+
+## 10. BullMQ Queue Setup + Memory Workers
+
+```typescript
+// src/workers/queue.ts
+
+import { Worker, Queue, QueueScheduler } from "bullmq";
+import { redis } from "../integrations/redis";
+import { autofixWorker, autofixQueue } from "./autofix.worker";
+import { memoryWorker } from "./memory.worker";
+
+export const memoryQueue = new Queue("memory", { connection: redis });
+
+// Scheduled jobs (replaces Celery beat)
+export async function startWorkers() {
+  console.log("🚀 BullMQ workers started");
+
+  // Repeatable jobs — replaces celery beat
+  await memoryQueue.add(
+    "detect-tasks",
+    {},
+    { repeat: { every: 60 * 60 * 1000 } }   // every 1hr
+  );
+
+  await memoryQueue.add(
+    "detect-problems",
+    {},
+    { repeat: { every: 6 * 60 * 60 * 1000 } } // every 6hr
+  );
+
+  return { autofixWorker, memoryWorker };
+}
+
+// Queue name → priority mapping
+export const QUEUES = {
+  HIGH:    "memory:transcribe",   // voice transcription
+  DEFAULT: "autofix",             // incident pipeline
+  LOW:     "memory",              // task/problem detection
+} as const;
+```
+
+---
+
+## 11. Webhook Security
+
+```typescript
+// src/routers/webhooks.router.ts
+
+import { Router, Request, Response } from "express";
+import crypto from "crypto";
+import { prisma } from "../prisma";
+import { autofixQueue } from "../workers/queue";
+import { incidentService } from "../services/autofix/incident.service";
+
+const router = Router();
+
+function verifyHMAC(body: Buffer, secret: string, signature: string): boolean {
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(body)
+    .digest("hex");
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expected)
+  );
+}
+
+router.post(
+  "/sentry/:projectToken",
+  express.raw({ type: "application/json" }), // raw body for HMAC
+  async (req: Request, res: Response) => {
+    const project = await prisma.project.findUnique({
+      where: { webhookToken: req.params.projectToken },
+    });
+
+    if (!project) return res.status(404).json({ error: "Project not found" });
+
+    const signature =
+      req.headers["sentry-hook-signature"] as string ??
+      req.headers["x-nexusops-signature"] as string ?? "";
+
+    if (!verifyHMAC(req.body, project.sentryWebhookSecret, signature)) {
+      return res.status(401).json({ error: "Invalid signature" });
+    }
+
+    const payload = JSON.parse(req.body.toString());
+    const incident = await incidentService.createFromSentry(payload, project);
+
+    // Enqueue AutoFix pipeline job
+    await autofixQueue.add("process_incident", { incidentId: incident.id });
+
+    return res.json({ status: "accepted", incidentId: incident.id });
+  }
+);
+
+export { router as webhooksRouter };
+```
+
+---
+
+## 12. PR Body Builder (with Memory Context)
+
+```typescript
+// src/utils/promptBuilder.ts
+
+interface PRBodyOptions {
+  fix: Fix;
+  analysis: Analysis;
+  memoryContext: MemoryContext | null;
+  safety: SafetyReport;
+  incident: Incident;
+}
+
+export function buildPRBody({
+  fix,
+  analysis,
+  memoryContext,
+  safety,
+  incident,
+}: PRBodyOptions): string {
+  const memorySection =
+    memoryContext?.found
+      ? `
 ---
 
 ### 🧠 Team Memory Context
 *NexusOps found relevant past discussions about this issue:*
 
-> {memory_context.summary}
+> ${memoryContext.summary}
 
 **Sources:**
-{chr(10).join(f'- {c["source"]}: "{c["text"][:120]}..."' for c in memory_context.chunks)}
-"""
+${memoryContext.chunks.map((c) => `- ${c.source}: "${c.text.slice(0, 120)}..."`).join("\n")}
+`
+      : "";
 
-    return f"""## 🤖 NexusOps AutoFix — Draft PR
+  return `## 🤖 NexusOps AutoFix — Draft PR
 
 > **⚠️ DRAFT — Review before merging. AI-generated fix.**
 
 ---
 
 ### 📋 Incident
-- **Error:** `{incident.error_type}: {incident.error_message[:150]}`
-- **Severity:** {incident.severity}
-- **Detected:** {incident.created_at}
+- **Error:** \`${incident.errorType}: ${incident.errorMessage.slice(0, 150)}\`
+- **Severity:** ${incident.severity}
+- **Detected:** ${incident.createdAt.toISOString()}
 
 ---
 
 ### 🔍 Root Cause
-{analysis.explanation}
+${analysis.explanation}
 
-**Confidence:** {fix.confidence:.0%}
+**Confidence:** ${(fix.confidence * 100).toFixed(0)}%
 
 ---
 
 ### 🔧 Fix Applied
-{fix.explanation}
+${fix.explanation}
 
-**Files changed:** {", ".join(f"`{fc['path']}`" for fc in fix.file_changes)}
+**Files changed:** ${fix.fileChanges.map((fc) => `\`${fc.path}\``).join(", ")}
 
 ---
 
 ### 🛡️ Safety Check
-**Score:** `{safety_report.score}`
-{safety_report.summary}
-{memory_section}
+**Score:** \`${safety.score}\`
+${safety.summary}
+${memorySection}
 ---
 
-*Generated by [NexusOps](https://nexusops.dev) | Incident: `{incident.id[:8]}`*
-"""
-```
-
----
-
-## 7. Celery Configuration
-
-```python
-# workers/celery_app.py
-
-from celery import Celery
-from app.config import settings
-
-celery_app = Celery(
-    "nexusops",
-    broker=settings.REDIS_URL,
-    backend=settings.REDIS_URL,
-    include=["app.workers.memory_worker", "app.workers.autofix_worker"]
-)
-
-celery_app.conf.task_routes = {
-    "memory.transcribe_voice":     {"queue": "high"},
-    "memory.ingest_text":          {"queue": "default"},
-    "memory.embed_chunks":         {"queue": "default"},
-    "autofix.process_incident":    {"queue": "default"},
-    "memory.detect_tasks":         {"queue": "low"},
-    "memory.detect_problems":      {"queue": "low"},
-}
-
-celery_app.conf.beat_schedule = {
-    "detect-tasks-hourly": {
-        "task": "memory.detect_tasks",
-        "schedule": 3600.0,
-    },
-    "detect-problems-6hr": {
-        "task": "memory.detect_problems",
-        "schedule": 21600.0,
-    },
+*Generated by [NexusOps](https://nexusops.dev) | Incident: \`${incident.id.slice(0, 8)}\`*`;
 }
 ```
 
 ---
 
-## 8. Webhook Security
-
-```python
-# routers/webhooks.py
-
-import hmac, hashlib
-
-async def verify_hmac(request: Request, secret: str) -> bool:
-    signature = (
-        request.headers.get("sentry-hook-signature") or
-        request.headers.get("x-nexusops-signature", "")
-    )
-    body = await request.body()
-    expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(signature, expected)
-
-@router.post("/webhook/sentry/{project_token}")
-async def sentry_webhook(project_token: str, request: Request):
-    project = await db.get_project_by_token(project_token)
-    if not await verify_hmac(request, project.sentry_webhook_secret):
-        raise HTTPException(401, "Invalid signature")
-    
-    payload = await request.json()
-    incident = await incident_service.create_from_sentry(payload, project)
-    process_incident.delay(str(incident.id))
-    
-    return {"status": "accepted", "incident_id": str(incident.id)}
-```
-
----
-
-## 9. Docker Compose (Local Dev)
+## 13. Docker Compose (Local Dev)
 
 ```yaml
-version: '3.8'
+version: "3.8"
 services:
   postgres:
     image: pgvector/pgvector:pg15
@@ -500,26 +895,40 @@ services:
     ports: ["8000:8000"]
     depends_on: [postgres, redis]
     env_file: .env
-    command: uvicorn app.main:app --reload --host 0.0.0.0
+    command: npx ts-node src/index.ts
 
-  celery-worker:
+  bullmq-worker:
     build: ./backend
     depends_on: [postgres, redis]
     env_file: .env
-    command: celery -A app.workers.celery_app worker -Q high,default,low --loglevel=info
-
-  celery-beat:
-    build: ./backend
-    depends_on: [postgres, redis]
-    env_file: .env
-    command: celery -A app.workers.celery_app beat --loglevel=info
+    command: npx ts-node src/workers/queue.ts
 
   telegram-bot:
     build: ./backend
     depends_on: [postgres, redis]
     env_file: .env
-    command: python -m app.integrations.telegram_bot
+    command: npx ts-node src/integrations/telegramBot.ts
 
 volumes:
   pgdata:
 ```
+
+> **Note:** In production, use `tsx` or compile to `dist/` and run `node dist/index.js`.
+
+---
+
+## 14. LangChain Stack Summary
+
+| Python (old)                      | Node.js LangChain.js (new)                       |
+|-----------------------------------|--------------------------------------------------|
+| `PGVector` (SQLAlchemy)           | `PGVectorStore` (`@langchain/community`)         |
+| `openai` embeddings               | `OpenAIEmbeddings` (`@langchain/openai`)         |
+| `anthropic` client                | `ChatAnthropic` (`@langchain/anthropic`)         |
+| `create_retrieval_chain` (Python) | `createRetrievalChain` (`langchain`)             |
+| `create_stuff_documents_chain`    | `createStuffDocumentsChain` (`langchain`)        |
+| `RecursiveCharacterTextSplitter`  | `RecursiveCharacterTextSplitter` (`langchain`)   |
+| `PromptTemplate`                  | `ChatPromptTemplate` (`@langchain/core/prompts`) |
+| `JsonOutputParser`                | `JsonOutputParser` (`@langchain/core/output_parsers`) |
+| Celery + Redis                    | BullMQ + Redis (`bullmq`)                        |
+| SQLAlchemy ORM                    | Prisma ORM (`@prisma/client`)                    |
+| FastAPI                           | Express.js + TypeScript                          |

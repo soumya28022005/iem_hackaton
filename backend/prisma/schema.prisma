@@ -1,0 +1,346 @@
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../src/generated/client"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector")]
+}
+
+model User {
+  id                  String   @id @default(uuid()) @db.Uuid
+  email               String   @unique @db.VarChar(255)
+  name                String?  @db.VarChar(255)
+  avatar_url          String?
+  github_id           String?  @unique @db.VarChar(100)
+  github_username     String?  @db.VarChar(100)
+  github_access_token String?
+  google_id           String?  @unique @db.VarChar(100)
+  google_access_token String?
+  hashed_password     String?
+  provider            String   @default("email") @db.VarChar(50)
+  is_active           Boolean  @default(true)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  owned_workspaces Workspace[]       @relation("WorkspaceOwner")
+  memberships      WorkspaceMember[]
+  query_history    QueryHistory[]
+  reviewed_fixes   Fix[]
+  activity_logs    ActivityLog[]
+
+  @@map("users")
+}
+
+model Workspace {
+  id                      String   @id @default(uuid()) @db.Uuid
+  name                    String   @db.VarChar(255)
+  slug                    String   @unique @db.VarChar(100)
+  description             String?
+  owner_id                String   @db.Uuid
+  telegram_chat_id        String?  @db.VarChar(100)
+  jira_project_key        String?  @db.VarChar(50)
+  jira_base_url           String?
+  default_branch          String   @default("main") @db.VarChar(100)
+  auto_revert_enabled     Boolean  @default(false)
+  error_rate_threshold    Float    @default(3.0)
+  revert_window_min       Int      @default(5)
+  notify_telegram_chat_id String?  @db.VarChar(100)
+  notify_on_pr            Boolean  @default(true)
+  notify_on_revert        Boolean  @default(true)
+  notify_on_task          Boolean  @default(false)
+  settings                Json     @default("{}")
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+
+  owner                User                 @relation("WorkspaceOwner", fields: [owner_id], references: [id], onDelete: Cascade)
+  members              WorkspaceMember[]
+  sources              Source[]
+  chunks               DocumentChunk[]
+  query_history        QueryHistory[]
+  tasks                Task[]
+  problems             Problem[]
+  repositories         Repository[]
+  incidents            Incident[]
+  activity_logs        ActivityLog[]
+  revert_events        RevertEvent[]
+  error_rate_snapshots ErrorRateSnapshot[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspace_id String   @db.Uuid
+  user_id      String   @db.Uuid
+  role         String   @default("member") @db.VarChar(20)
+  joined_at    DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([workspace_id, user_id])
+  @@map("workspace_members")
+}
+
+model Source {
+  id               String    @id @default(uuid()) @db.Uuid
+  workspace_id     String    @db.Uuid
+  source_type      String    @db.VarChar(50)
+  name             String?   @db.VarChar(500)
+  status           String    @default("pending") @db.VarChar(30)
+  file_url         String?
+  file_size_bytes  BigInt?
+  duration_seconds Int?
+  external_id      String?   @db.VarChar(255)
+  metadata         Json      @default("{}")
+  error_message    String?
+  processed_at     DateTime?
+  created_at       DateTime  @default(now())
+
+  workspace Workspace       @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  chunks    DocumentChunk[]
+
+  @@index([workspace_id])
+  @@index([status])
+  @@index([source_type])
+  @@map("sources")
+}
+
+model DocumentChunk {
+  id           String                 @id @default(uuid()) @db.Uuid
+  workspace_id String                 @db.Uuid
+  source_id    String                 @db.Uuid
+  chunk_index  Int
+  text         String                 @db.Text
+  embedding    Unsupported("vector")?
+  metadata     Json                   @default("{}")
+  sender       String?                @db.VarChar(255)
+  timestamp    DateTime?
+  source_type  String?                @db.VarChar(50)
+  channel_name String?                @db.VarChar(255)
+  incident_id  String?                @db.Uuid
+  created_at   DateTime               @default(now())
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  source    Source    @relation(fields: [source_id], references: [id], onDelete: Cascade)
+  incident  Incident? @relation(fields: [incident_id], references: [id])
+  tasks     Task[]
+
+  @@index([workspace_id])
+  @@index([source_id])
+  @@map("document_chunks")
+}
+
+model QueryHistory {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspace_id String   @db.Uuid
+  user_id      String?  @db.Uuid
+  question     String   @db.Text
+  answer       String   @db.Text
+  sources      Json     @default("[]")
+  latency_ms   Int?
+  model_used   String?  @db.VarChar(100)
+  feedback     String?  @db.VarChar(20)
+  created_at   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [user_id], references: [id])
+
+  @@index([workspace_id, created_at])
+  @@map("query_history")
+}
+
+model Task {
+  id               String   @id @default(uuid()) @db.Uuid
+  workspace_id     String   @db.Uuid
+  title            String   @db.VarChar(500)
+  description      String?
+  status           String   @default("detected") @db.VarChar(30)
+  priority         String   @default("medium") @db.VarChar(20)
+  assignee_hint    String?  @db.VarChar(255)
+  deadline_hint    String?
+  source_chunk_id  String?  @db.Uuid
+  source_preview   String?
+  jira_ticket_key  String?  @db.VarChar(50)
+  jira_synced_at   DateTime?
+  detected_at      DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  workspace    Workspace      @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  source_chunk DocumentChunk? @relation(fields: [source_chunk_id], references: [id])
+
+  @@index([workspace_id])
+  @@index([status])
+  @@map("tasks")
+}
+
+model Problem {
+  id                String   @id @default(uuid()) @db.Uuid
+  workspace_id      String   @db.Uuid
+  title             String   @db.VarChar(500)
+  description       String?
+  frequency         Int      @default(1)
+  severity          String   @default("medium") @db.VarChar(20)
+  status            String   @default("open") @db.VarChar(30)
+  first_seen        DateTime @default(now())
+  last_seen         DateTime @default(now())
+  related_chunk_ids String[] @default([])
+  created_at        DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+
+  @@index([workspace_id])
+  @@map("problems")
+}
+
+model Repository {
+  id              String    @id @default(uuid()) @db.Uuid
+  workspace_id    String    @db.Uuid
+  github_repo_id  BigInt?   @unique
+  full_name       String    @db.VarChar(255)
+  name            String    @db.VarChar(255)
+  default_branch  String    @default("main") @db.VarChar(100)
+  branch          String    @default("main") @db.VarChar(100)
+  provider        String    @default("github") @db.VarChar(50)
+  language        String?   @db.VarChar(50)
+  is_private      Boolean   @default(false)
+  webhook_id      BigInt?
+  github_token    String?
+  last_synced_at  DateTime?
+  created_at      DateTime  @default(now())
+
+  workspace Workspace  @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  incidents Incident[]
+
+  @@index([workspace_id])
+  @@index([full_name])
+  @@map("repositories")
+}
+
+model Incident {
+  id                       String    @id @default(uuid()) @db.Uuid
+  workspace_id             String    @db.Uuid
+  repository_id            String?   @db.Uuid
+  raw_error                String?
+  raw_stack_trace          String?
+  sanitized_error          String?
+  sanitized_stack_trace    String?
+  sanitization_report      Json      @default("{}")
+  error_type               String?   @db.VarChar(255)
+  error_message            String?
+  stack_trace              String?
+  severity                 String    @default("medium") @db.VarChar(20)
+  environment              String    @default("production") @db.VarChar(50)
+  branch                   String    @default("main") @db.VarChar(100)
+  source                   String    @default("manual") @db.VarChar(50)
+  external_id              String?   @db.VarChar(255)
+  root_cause               String?
+  affected_files           Json      @default("[]")
+  analysis_confidence      Float?
+  analysis_keywords        String[]  @default([])
+  memory_context           Json?
+  pr_url                   String?
+  pr_number                Int?
+  pr_branch                String?   @db.VarChar(255)
+  pr_created_at            DateTime?
+  pr_merged_at             DateTime?
+  status                   String    @default("received") @db.VarChar(30)
+  pipeline_error           String?
+  received_at              DateTime  @default(now())
+  resolved_at              DateTime?
+  created_at               DateTime  @default(now())
+  updated_at               DateTime  @updatedAt
+
+  workspace Workspace       @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  repository Repository?    @relation(fields: [repository_id], references: [id])
+  fixes      Fix[]
+  chunks     DocumentChunk[]
+
+  @@index([workspace_id])
+  @@index([status])
+  @@index([severity])
+  @@index([created_at])
+  @@map("incidents")
+}
+
+model Fix {
+  id                String    @id @default(uuid()) @db.Uuid
+  incident_id       String    @db.Uuid
+  title             String    @default("Proposed fix") @db.VarChar(500)
+  explanation       String?
+  diff              String?
+  confidence        Float?
+  caveats           String[]  @default([])
+  file_changes      Json      @default("[]")
+  safety_score      String?   @db.VarChar(30)
+  safety_issues     Json      @default("[]")
+  reviewed_by       String?   @db.Uuid
+  reviewed_at       DateTime?
+  review_note       String?
+  model_used        String?   @db.VarChar(100)
+  prompt_tokens     Int?
+  completion_tokens Int?
+  status            String    @default("pending") @db.VarChar(50)
+  pr_url            String?
+  created_at        DateTime  @default(now())
+
+  incident Incident @relation(fields: [incident_id], references: [id], onDelete: Cascade)
+  reviewer User?    @relation(fields: [reviewed_by], references: [id])
+
+  @@index([incident_id])
+  @@map("fixes")
+}
+
+model RevertEvent {
+  id             String    @id @default(uuid()) @db.Uuid
+  workspace_id   String    @db.Uuid
+  incident_id    String?   @db.Uuid
+  trigger_type   String    @db.VarChar(50)
+  reason         String?
+  bad_deploy_id  String?   @db.VarChar(255)
+  reverted_to    String?   @db.VarChar(255)
+  platform       String?   @db.VarChar(50)
+  status         String    @db.VarChar(30)
+  error_message  String?
+  triggered_at   DateTime  @default(now())
+  completed_at   DateTime?
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+
+  @@map("revert_events")
+}
+
+model ErrorRateSnapshot {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspace_id String   @db.Uuid
+  rate         Float
+  deploy_id    String?  @db.VarChar(255)
+  recorded_at  DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+
+  @@index([workspace_id, recorded_at])
+  @@map("error_rate_snapshots")
+}
+
+model ActivityLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  workspace_id  String   @db.Uuid
+  user_id       String?  @db.Uuid
+  module        String   @db.VarChar(30)
+  action        String   @db.VarChar(100)
+  resource_type String?  @db.VarChar(50)
+  resource_id   String?  @db.Uuid
+  metadata      Json     @default("{}")
+  created_at    DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [user_id], references: [id])
+
+  @@index([workspace_id, created_at])
+  @@map("activity_log")
+}

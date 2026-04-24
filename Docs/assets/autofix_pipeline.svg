@@ -1,0 +1,59 @@
+<svg width="1000" height="400" viewBox="0 0 1000 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1000" height="400" rx="16" fill="#0F172A"/>
+  
+  <!-- Steps -->
+  <g transform="translate(50, 150)">
+    <!-- Step 1: Detect -->
+    <rect x="0" y="0" width="120" height="100" rx="12" fill="#1E293B" stroke="#3B82F6" stroke-width="2"/>
+    <text x="60" y="45" text-anchor="middle" fill="#F8FAFC" font-family="Inter, sans-serif" font-size="14" font-weight="600">1. DETECT</text>
+    <text x="60" y="65" text-anchor="middle" fill="#94A3B8" font-family="Inter, sans-serif" font-size="10">Sentry Webhook</text>
+
+    <!-- Arrow -->
+    <path d="M 120 50 L 160 50" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <!-- Step 2: Sanitize -->
+    <rect x="160" y="0" width="120" height="100" rx="12" fill="#1E293B" stroke="#3B82F6" stroke-width="2"/>
+    <text x="220" y="45" text-anchor="middle" fill="#F8FAFC" font-family="Inter, sans-serif" font-size="14" font-weight="600">2. SANITIZE</text>
+    <text x="220" y="65" text-anchor="middle" fill="#94A3B8" font-family="Inter, sans-serif" font-size="10">Strip PII/Secrets</text>
+
+    <!-- Arrow -->
+    <path d="M 280 50 L 320 50" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <!-- Step 3: Analyze -->
+    <rect x="320" y="0" width="120" height="100" rx="12" fill="#1E293B" stroke="#8B5CF6" stroke-width="2"/>
+    <text x="380" y="45" text-anchor="middle" fill="#F8FAFC" font-family="Inter, sans-serif" font-size="14" font-weight="600">3. ANALYZE</text>
+    <text x="380" y="65" text-anchor="middle" fill="#94A3B8" font-family="Inter, sans-serif" font-size="10">Root Cause (AI)</text>
+
+    <!-- Arrow -->
+    <path d="M 440 50 L 480 50" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <!-- Step 4: Enrich -->
+    <rect x="480" y="0" width="120" height="100" rx="12" fill="#1E293B" stroke="#F59E0B" stroke-width="2"/>
+    <text x="540" y="45" text-anchor="middle" fill="#F8FAFC" font-family="Inter, sans-serif" font-size="14" font-weight="600">4. ENRICH</text>
+    <text x="540" y="65" text-anchor="middle" fill="#94A3B8" font-family="Inter, sans-serif" font-size="10">Team Memory</text>
+
+    <!-- Arrow -->
+    <path d="M 600 50 L 640 50" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <!-- Step 5: Fix -->
+    <rect x="640" y="0" width="120" height="100" rx="12" fill="#1E293B" stroke="#10B981" stroke-width="2"/>
+    <text x="700" y="45" text-anchor="middle" fill="#F8FAFC" font-family="Inter, sans-serif" font-size="14" font-weight="600">5. FIX</text>
+    <text x="700" y="65" text-anchor="middle" fill="#94A3B8" font-family="Inter, sans-serif" font-size="10">Code Generation</text>
+
+    <!-- Arrow -->
+    <path d="M 760 50 L 800 50" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <!-- Step 6: PR -->
+    <rect x="800" y="0" width="120" height="100" rx="12" fill="#1E293B" stroke="#EC4899" stroke-width="2"/>
+    <text x="860" y="45" text-anchor="middle" fill="#F8FAFC" font-family="Inter, sans-serif" font-size="14" font-weight="600">6. RESOLVE</text>
+    <text x="860" y="65" text-anchor="middle" fill="#94A3B8" font-family="Inter, sans-serif" font-size="10">GitHub Draft PR</text>
+  </g>
+
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#334155" />
+    </marker>
+  </defs>
+
+  <text x="500" y="80" text-anchor="middle" fill="#60A5FA" font-family="Inter, sans-serif" font-size="24" font-weight="800" letter-spacing="4">AUTOFIX PIPELINE</text>
+</svg>
