@@ -12,10 +12,29 @@ const verifyAuth = asyncHandler(async (req, _res, next) => {
 
   let payload;
   try {
+    // 1. Try local JWT verification (HS256)
     payload = verifyToken(token);
   } catch (err) {
-    console.warn(`Auth failed: Invalid token - ${err.message}`);
-    throw new AppError(401, 'Unauthorized: invalid token');
+    // 2. If local fails, try Firebase verification
+    try {
+      const { verifyFirebaseIdToken } = require('../services/auth.service');
+      const decoded = await verifyFirebaseIdToken(token);
+      
+      // Map Firebase user to local user
+      const { prisma } = require('../lib/prisma');
+      const user = await prisma.user.findUnique({ where: { email: decoded.email } });
+      
+      if (user) {
+        req.user = user;
+        return next();
+      }
+      
+      console.warn(`Auth failed: Firebase token verified but user ${decoded.email} not found in DB`);
+      throw new AppError(401, 'Unauthorized: user not synced');
+    } catch (firebaseErr) {
+      console.warn(`Auth failed: Both local and Firebase verification failed. Local: ${err.message}, Firebase: ${firebaseErr.message}`);
+      throw new AppError(401, 'Unauthorized: invalid token');
+    }
   }
 
   const user = await prisma.user.findUnique({ where: { id: payload.sub } });
@@ -37,7 +56,14 @@ const optionalAuth = asyncHandler(async (req, _res, next) => {
     const payload = verifyToken(token);
     req.user = await prisma.user.findUnique({ where: { id: payload.sub } });
   } catch (_err) {
-    req.user = null;
+    try {
+      const { verifyFirebaseIdToken } = require('../services/auth.service');
+      const decoded = await verifyFirebaseIdToken(token);
+      const { prisma } = require('../lib/prisma');
+      req.user = await prisma.user.findUnique({ where: { email: decoded.email } });
+    } catch (_firebaseErr) {
+      req.user = null;
+    }
   }
 
   next();

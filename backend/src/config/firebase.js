@@ -47,7 +47,7 @@ try {
     }
 
     admin.initializeApp(options);
-    console.log('Firebase Admin initialized successfully.');
+    console.log(`Firebase Admin initialized successfully for project: ${options.projectId || 'default'}`);
   }
 } catch (error) {
   console.error('Firebase Admin initialization error:', error);

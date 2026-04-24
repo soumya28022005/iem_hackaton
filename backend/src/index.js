@@ -65,7 +65,7 @@ app.use((req, res) => {
 app.use(errorMiddleware);
 
 if (require.main === module) {
-  app.listen(config.PORT, '127.0.0.1', () => {
+  app.listen(config.PORT, '0.0.0.0', () => {
     console.log(`NexusOps API running on http://127.0.0.1:${config.PORT}`);
   });
 

@@ -106,6 +106,7 @@ async function syncFirebase(idToken) {
   let decoded;
   try {
     decoded = await verifyFirebaseIdToken(idToken);
+    console.log(`[Firebase Debug] Token verified for email: ${decoded.email}, uid: ${decoded.uid}`);
   } catch (err) {
     console.error('Firebase token verification failed:', err.message);
     throw new AppError(401, `Invalid Firebase ID token: ${err.message}`);
@@ -116,22 +117,28 @@ async function syncFirebase(idToken) {
     throw new AppError(400, 'Firebase token does not include an email');
   }
 
-  const user = await prisma.user.upsert({
-    where: { email },
-    update: {
-      name: decoded.name || undefined,
-      avatar_url: decoded.picture || undefined,
-      google_id: decoded.uid,
-      provider: 'firebase',
-    },
-    create: {
-      email,
-      name: decoded.name || '',
-      avatar_url: decoded.picture || '',
-      google_id: decoded.uid,
-      provider: 'firebase',
-    },
-  });
+  let user;
+  try {
+    user = await prisma.user.upsert({
+      where: { email },
+      update: {
+        name: decoded.name || undefined,
+        avatar_url: decoded.picture || undefined,
+        google_id: decoded.uid,
+        provider: 'firebase',
+      },
+      create: {
+        email,
+        name: decoded.name || '',
+        avatar_url: decoded.picture || '',
+        google_id: decoded.uid,
+        provider: 'firebase',
+      },
+    });
+  } catch (dbErr) {
+    console.error(`[Firebase Debug] User upsert failed for ${email}:`, dbErr.message);
+    throw new AppError(500, `Database error during sync: ${dbErr.message}`);
+  }
 
   return issueSession(user);
 }
@@ -214,4 +221,5 @@ module.exports = {
   syncFirebase,
   syncGithub,
   syncGoogle,
+  verifyFirebaseIdToken,
 };

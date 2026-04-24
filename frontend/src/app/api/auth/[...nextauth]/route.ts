@@ -26,15 +26,17 @@ const authOptions: NextAuthOptions = {
           });
 
           if (!res.ok) {
-            const errorBody = await res.json().catch(() => null);
+            const errorBody = await res.json().catch(() => ({}));
             console.error("Firebase backend auth failed:", {
               status: res.status,
-              error: errorBody?.error || res.statusText,
+              error: errorBody.error || errorBody.message || res.statusText,
+              path: "/api/v1/auth/firebase"
             });
             return null;
           }
 
           const data = await res.json();
+          console.log("Firebase backend auth success:", { userId: data.user.id });
           return {
             id: data.user.id,
             name: data.user.name,
@@ -45,7 +47,7 @@ const authOptions: NextAuthOptions = {
             provider: data.user.provider,
           };
         } catch (error) {
-          console.error("Firebase auth error:", error);
+          console.error("Firebase auth exception:", error);
           return null;
         }
       },

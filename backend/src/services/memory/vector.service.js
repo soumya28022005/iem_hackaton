@@ -5,11 +5,15 @@ const { config } = require('../../lib/config');
 let embeddings;
 
 function getEmbeddings() {
-  if (!config.OPENAI_API_KEY) return null;
+  const isValidKey = config.OPENAI_API_KEY && config.OPENAI_API_KEY !== 'your-openai-api-key-here';
+  if (!isValidKey) return null;
   if (!embeddings) {
     embeddings = new OpenAIEmbeddings({
-      model: 'text-embedding-3-small',
+      modelName: 'text-embedding-3-small',
       openAIApiKey: config.OPENAI_API_KEY,
+      configuration: {
+        baseURL: config.OPENAI_BASE_URL,
+      },
     });
   }
   return embeddings;
