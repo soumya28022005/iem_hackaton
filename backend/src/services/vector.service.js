@@ -1,6 +1,6 @@
 const { OpenAIEmbeddings } = require('@langchain/openai');
-const { prisma } = require('../../lib/prisma');
-const { config } = require('../../lib/config');
+const { prisma } = require('../lib/prisma');
+const { config } = require('../lib/config');
 
 let embeddings;
 

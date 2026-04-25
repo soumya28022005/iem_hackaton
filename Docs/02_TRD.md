@@ -7,20 +7,21 @@
 | Frontend | Next.js 14 (App Router), TypeScript | SSR, file-based routing, type safety |
 | Styling | Tailwind CSS + shadcn/ui | Rapid consistent UI |
 | State | Zustand | Lightweight global state |
-| Backend | FastAPI (Python 3.11+) | Async-native, perfect for AI pipelines |
+| Backend | Express.js + TypeScript (Node.js 20+) | Unified JS/TS stack, LangChain.js native |
+| RAG Framework | LangChain.js (`langchain`, `@langchain/core`, `@langchain/community`) | LCEL chains, retrieval, chunking, output parsers |
 | Primary DB | PostgreSQL 15 + pgvector | Relational + vector search in one DB |
-| Cache / Queue | Redis (Upstash) | Job queue, rate limiting, dedup, session cache |
-| Async Workers | Celery + Redis | Both ingestion and fix pipelines run async |
+| ORM | Prisma ORM + Prisma Migrate | Type-safe DB access, pgvector extension support |
+| Cache / Queue | Redis (Upstash) + BullMQ | Job queue, rate limiting, dedup, repeatable beat jobs |
 | Object Storage | Cloudflare R2 | Voice notes, audio, uploaded docs |
-| AI / LLM | Anthropic Claude claude-sonnet-4-20250514 | Q&A, task detection, fix generation, root cause |
-| Embeddings | OpenAI text-embedding-3-small | 1536-dim vectors for semantic search |
+| AI / LLM | Anthropic Claude claude-sonnet-4-20250514 via `@langchain/anthropic` | Q&A, task detection, fix generation, root cause |
+| Embeddings | OpenAI text-embedding-3-small via `@langchain/openai` | 1536-dim vectors for semantic search |
+| Vector Store | `PGVectorStore` (`@langchain/community`) | LangChain-native pgvector retriever |
 | STT | OpenAI Whisper API | Voice note transcription |
-| Telegram | python-telegram-bot v20 | Team message + voice ingestion |
-| GitHub | PyGithub + GitHub OAuth App | Code fetch, branch create, PR creation |
+| Telegram | Telegraf v4 (Node.js) | Team message + voice ingestion |
+| GitHub | Octokit (`@octokit/rest`) + GitHub OAuth App | Code fetch, branch create, PR creation |
 | Auth | NextAuth.js (GitHub OAuth) | Single sign-on — GitHub is required anyway |
-| ORM | SQLAlchemy 2.0 async + Alembic | Type-safe DB, migrations |
 | Diff Viewer | react-diff-viewer-continued | Code diff display in frontend |
-| Notifications | python-telegram-bot (same bot) | Alerts for incidents and PRs |
+| Notifications | Telegraf (same bot instance) | Alerts for incidents and PRs |
 | Jira | Atlassian REST API v3 | Task ticket creation |
 | Deployment | Vercel (frontend) + Railway (backend + workers) | Fast hackathon deploy |
 
@@ -38,7 +39,7 @@
             │                  │                │
             ▼                  ▼                ▼
 ┌───────────────────────────────────────────────────────────────────────────────┐
-│                      FASTAPI BACKEND (Single Service)                         │
+│                   EXPRESS.JS BACKEND — TypeScript (Single Service)            │
 │                                                                               │
 │  /api/v1/memory/*    ←── Memory Engine routes                                │
 │  /api/v1/autofix/*   ←── AutoFix Engine routes                               │
@@ -48,13 +49,13 @@
             │                    │
             ▼                    ▼
 ┌────────────────────┐   ┌───────────────────────────────────────────────────┐
-│   SYNC HANDLERS    │   │          CELERY ASYNC WORKERS                     │
+│   SYNC HANDLERS    │   │           BULLMQ ASYNC WORKERS                    │
 │                    │   │                                                   │
-│ • JWT auth         │   │  Queue: HIGH   → voice transcription              │
-│ • Q&A queries      │   │  Queue: DEFAULT→ chunking, embedding, fix pipeline│
-│ • Task CRUD        │   │  Queue: LOW    → detection scans, cleanup        │
+│ • JWT auth         │   │  Queue: memory:transcribe → voice (HIGH)          │
+│ • RAG Q&A          │   │  Queue: autofix           → fix pipeline (DEFAULT)│
+│ • Task CRUD        │   │  Queue: memory            → detection scans (LOW) │
 │ • Fix review       │   │                                                   │
-│ • Dashboard stats  │   │  Beat: task detection (1hr), problem scan (6hr)  │
+│ • Dashboard stats  │   │  Repeatable: detect-tasks (1hr), problems (6hr)  │
 └────────────────────┘   └───────────────────────────────────────────────────┘
             │                    │
             └─────────┬──────────┘
@@ -63,7 +64,7 @@
 │                           DATA LAYER                                         │
 │                                                                              │
 │   PostgreSQL 15 + pgvector          Redis (Upstash)     Cloudflare R2       │
-│   ├── users, workspaces             ├── Celery queue    ├── voice notes      │
+│   ├── users, workspaces             ├── BullMQ queue    ├── voice notes      │
 │   ├── sources (Memory)              ├── rate limits     ├── meeting audio    │
 │   ├── document_chunks + vectors     ├── session cache   └── uploaded docs    │
 │   ├── query_history                 └── dedup keys                          │
@@ -75,13 +76,16 @@
                       │
                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                       EXTERNAL AI SERVICES                                   │
+│                    LANGCHAIN.JS + EXTERNAL AI SERVICES                       │
 │                                                                              │
-│  Anthropic Claude         OpenAI Embeddings       OpenAI Whisper            │
-│  ├── Memory Q&A           ├── text-embedding-3-sm  ├── voice transcription  │
-│  ├── Task detection       └── 1536-dim vectors     └── language detection   │
-│  ├── Root cause analysis                                                    │
-│  └── Fix generation                                                         │
+│  ChatAnthropic (LangChain)       OpenAIEmbeddings (LangChain)               │
+│  ├── createRetrievalChain (RAG)  ├── text-embedding-3-small                 │
+│  ├── RunnableSequence (AutoFix)  ├── 1536-dim vectors                       │
+│  ├── JsonOutputParser (fix JSON) └── PGVectorStore (pgvector retriever)     │
+│  └── StringOutputParser                                                     │
+│                                                                             │
+│  OpenAI Whisper                                                             │
+│  └── voice transcription + language detection                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -105,8 +109,8 @@ POST   /memory/ingest/telegram/connect    → link Telegram group
 POST   /memory/ingest/telegram/history    → bulk import history
 POST   /memory/ingest/audio               → upload voice note / meeting
 POST   /memory/ingest/document            → upload PDF/DOCX/MD
-GET    /memory/ingest/jobs/:job_id        → poll ingestion status
-POST   /memory/query                      → RAG Q&A
+GET    /memory/ingest/jobs/:job_id        → poll BullMQ job status
+POST   /memory/query                      → LangChain RAG Q&A
 GET    /memory/search?q=...               → semantic search (raw chunks)
 GET    /memory/sources                    → list all sources
 GET    /memory/tasks                      → detected tasks
@@ -117,21 +121,21 @@ GET    /memory/problems                   → recurring issues
 
 #### AutoFix Engine Routes
 ```
-POST   /autofix/repos/connect             → connect GitHub repo
+POST   /autofix/repos/connect             → connect GitHub repo (Octokit)
 GET    /autofix/repos                     → list repos
 DELETE /autofix/repos/:id
 POST   /autofix/incidents/manual          → manually submit error
 GET    /autofix/incidents                 → incident list
 GET    /autofix/incidents/:id             → incident + fix detail
 PATCH  /autofix/incidents/:id/status      → dismiss / resolve
-POST   /autofix/incidents/:id/retry       → retry fix pipeline
+POST   /autofix/incidents/:id/retry       → re-enqueue BullMQ job
 POST   /autofix/fixes/:id/approve         → create real PR from draft
 POST   /autofix/revert/trigger            → manual revert
 ```
 
 #### Integration Layer Routes
 ```
-GET    /nexus/memory-context/:incident_id → memory search results for incident
+GET    /nexus/memory-context/:incident_id → PGVectorStore search for incident
 GET    /nexus/dashboard                   → unified stats for both modules
 GET    /nexus/timeline                    → combined activity feed
 ```
@@ -151,44 +155,49 @@ POST   /webhook/deploy/:project_token
 ### Memory Ingestion Pipeline
 ```
 Source received (Telegram / audio / doc)
-→ Store raw source + metadata in DB
-→ Enqueue Celery job (HIGH if audio, DEFAULT if text/doc)
+→ Store raw source + metadata in DB (Prisma)
+→ Enqueue BullMQ job (memory:transcribe if audio, memory if text/doc)
 → Worker: transcribe (Whisper) if audio
-→ Worker: extract text (pdfplumber / python-docx) if doc
-→ Semantic chunk (512 tokens, 50 overlap)
-→ Batch embed (OpenAI text-embedding-3-small, 25/call)
-→ Store document_chunks with pgvector embedding
-→ Update source status → 'processed'
+→ Worker: extract text (pdf-parse / mammoth) if doc
+→ LangChain RecursiveCharacterTextSplitter (chunkSize: 1000, overlap: 150)
+→ Batch embed via OpenAIEmbeddings (LangChain) — text-embedding-3-small
+→ PGVectorStore.addDocuments() → stores chunks + embeddings in pgvector
+→ Update source status → 'processed' (Prisma)
 ```
 
 ### AutoFix Pipeline
 ```
 Error webhook received
-→ Validate HMAC
-→ Create incident record
-→ Enqueue: fix_pipeline (DEFAULT queue)
+→ Validate HMAC (crypto.timingSafeEqual)
+→ Create incident record (Prisma)
+→ Enqueue BullMQ job: autofix queue
 
-Worker:
+BullMQ Worker:
 1. Sanitize: strip secrets/PII from error + stack trace
 2. Parse stack trace → file paths + line numbers
-3. GitHub API: fetch file content + 60-line context per file
-4. Claude: root cause analysis → JSON {root_cause, affected_files, confidence}
-5. Claude: fix generation → JSON {file_changes: [{path, original, fixed}]}
+3. Octokit: fetch file content + 60-line context per file
+4. LangChain analysisChain (RunnableSequence):
+   analysisPrompt | ChatAnthropic | JsonOutputParser
+   → { rootCause, affectedFiles, keywords, confidence }
+5. LangChain fixGenerationChain (RunnableSequence):
+   fixPrompt | ChatAnthropic | JsonOutputParser
+   → { fileChanges: [{ path, originalCode, fixedCode }] }
 6. Safety check: AST parse + dangerous pattern scan
-7. If BLOCKED → notify team, stop
-8. GitHub API: create branch → commit changes → open draft PR
-9. Notify team (Telegram): PR link + incident summary
+7. If BLOCKED → notify team via Telegraf, stop
+8. Octokit: create branch → commit changes → open draft PR
+9. Telegraf notify: PR link + incident summary
 ```
 
 ### Integration: Memory-Enriched PR
 ```
-After step 4 (root cause analysis complete):
-→ Extract error keywords + file names from analysis
-→ POST /nexus/memory-context with keywords
-→ Vector search in document_chunks for matching team discussions
+After analysisChain completes (root cause done):
+→ Extract error keywords + file names from analysis output
+→ memoryEnrichmentService.getContext(workspaceId, keywords, files)
+→ PGVectorStore.similaritySearchWithScore(query, 5) — threshold: 0.60
 → Fetch top 3 relevant memory chunks
-→ Include in PR body as "Team History" section
-→ Full PR: Code Fix + Root Cause + Team Memory Context
+→ summaryChain (ChatAnthropic | StringOutputParser) summarizes in 1-2 sentences
+→ Include in PR body as "🧠 Team Memory Context" section
+→ Final PR: Code Fix + Root Cause + Memory Context (NexusOps differentiator)
 ```
 
 ---
@@ -197,8 +206,8 @@ After step 4 (root cause analysis complete):
 
 | Operation | Target P95 |
 |-----------|-----------|
-| Memory Q&A (RAG) | < 4s |
-| Semantic search | < 600ms |
+| Memory Q&A (LangChain RAG) | < 4s |
+| PGVectorStore semantic search | < 600ms |
 | Voice transcription (5 min) | < 30s |
 | Error → Draft PR (full pipeline) | < 30s |
 | Auto-revert trigger | < 30s from threshold breach |
@@ -208,13 +217,13 @@ After step 4 (root cause analysis complete):
 
 ## 6. Security Requirements
 
-- All API routes: JWT Bearer token auth
-- Every DB query scoped to `workspace_id` (workspace isolation)
-- Webhook validation: HMAC-SHA256 on every inbound webhook
-- Sanitization: runs BEFORE any data touches Claude API
+- All API routes: JWT Bearer token auth (Express middleware)
+- Every Prisma query scoped to `workspaceId` (workspace isolation)
+- Webhook validation: `crypto.timingSafeEqual` HMAC-SHA256 on every inbound webhook
+- Sanitization: runs BEFORE any data touches LangChain / Claude API
 - GitHub + Jira tokens: AES-256 encrypted in DB
 - Telegram bot token: env secret, never exposed to frontend
-- Rate limits: 100 req/min per workspace on AI endpoints
+- Rate limits: 100 req/min per workspace on AI endpoints (Redis-backed)
 
 ---
 
@@ -222,9 +231,10 @@ After step 4 (root cause analysis complete):
 
 ```env
 # Core
-DATABASE_URL=postgresql+asyncpg://user:pass@host/nexusops
+DATABASE_URL=postgresql://user:pass@host/nexusops
 REDIS_URL=redis://...
 SECRET_KEY=...
+NODE_ENV=production
 
 # AI Services
 ANTHROPIC_API_KEY=sk-ant-...
@@ -266,9 +276,27 @@ NEXT_PUBLIC_GITHUB_CLIENT_ID=...
 | OpenAI Embeddings | ~100k chunks × $0.0001/1k | ~$0.01 |
 | OpenAI Whisper | ~60 min audio × $0.006/min | ~$0.36 |
 | Telegram Bot API | Unlimited | $0 |
-| GitHub API | OAuth free | $0 |
+| GitHub API (Octokit) | OAuth free tier | $0 |
 | Railway (backend) | Free tier | $0 |
 | Vercel (frontend) | Hobby free | $0 |
 | Cloudflare R2 | 10GB free | $0 |
-| Upstash Redis | 10k cmds/day free | $0 |
+| Upstash Redis + BullMQ | 10k cmds/day free | $0 |
 | **Total** | | **< $3** |
+
+---
+
+## 9. Stack Migration Summary
+
+| Old (Python) | New (Node.js + LangChain) |
+|---|---|
+| FastAPI | Express.js + TypeScript |
+| SQLAlchemy 2.0 async + Alembic | Prisma ORM + Prisma Migrate |
+| Celery + Redis beat | BullMQ + repeatable jobs |
+| `anthropic` Python SDK | `ChatAnthropic` (`@langchain/anthropic`) |
+| `openai` Python SDK | `OpenAIEmbeddings` (`@langchain/openai`) |
+| `PGVector` (Python) | `PGVectorStore` (`@langchain/community`) |
+| `create_retrieval_chain` (Python) | `createRetrievalChain` (LangChain.js) |
+| `RecursiveCharacterTextSplitter` | Same — LangChain.js |
+| `python-telegram-bot` v20 | Telegraf v4 |
+| `PyGithub` | `@octokit/rest` |
+| `pdfplumber` + `python-docx` | `pdf-parse` + `mammoth` |

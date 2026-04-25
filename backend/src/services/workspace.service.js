@@ -14,26 +14,12 @@ async function ensureDefaultWorkspace(user) {
     });
 
     if (existing) {
-      console.log(`[Workspace Debug] Existing workspace found for user: ${user.id}`);
       return existing;
     }
 
-    const slug = await uniqueSlug(prisma, `${user.name || user.email.split('@')[0]} team`);
-    const workspace = await prisma.workspace.create({
-      data: {
-        name: `${user.name || 'My'} Team`,
-        slug,
-        owner_id: user.id,
-        members: {
-          create: {
-            user_id: user.id,
-            role: 'admin',
-          },
-        },
-      },
+    return await createWorkspace(user.id, {
+      name: `${user.name || 'My'} Team`,
     });
-    console.log(`[Workspace Debug] Created default workspace for user: ${user.id}, slug: ${slug}`);
-    return workspace;
   } catch (error) {
     console.error(`[Workspace Debug] ensureDefaultWorkspace failed for user ${user.id}:`, error.message);
     throw error;
@@ -53,7 +39,41 @@ async function userHasWorkspace(userId, workspaceId) {
   return Boolean(membership);
 }
 
+async function createWorkspace(userId, data) {
+  const slug = data.slug || await uniqueSlug(prisma, data.name);
+  const workspace = await prisma.workspace.create({
+    data: {
+      name: data.name,
+      slug,
+      owner_id: userId,
+      members: {
+        create: {
+          user_id: userId,
+          role: 'admin',
+        },
+      },
+    },
+  });
+  return workspace;
+}
+
+async function getUserWorkspaces(userId) {
+  return await prisma.workspace.findMany({
+    where: {
+      members: { some: { user_id: userId } },
+    },
+    orderBy: { created_at: 'asc' },
+  });
+}
+
+async function getWorkspaceById(workspaceId) {
+  return await prisma.workspace.findUnique({ where: { id: workspaceId } });
+}
+
 module.exports = {
   ensureDefaultWorkspace,
   userHasWorkspace,
+  createWorkspace,
+  getUserWorkspaces,
+  getWorkspaceById,
 };

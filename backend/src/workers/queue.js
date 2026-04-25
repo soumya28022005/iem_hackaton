@@ -1,7 +1,7 @@
 const IORedis = require('ioredis');
 const { Queue, Worker } = require('bullmq');
 const { config } = require('../lib/config');
-const { processIncidentPipeline } = require('../services/autofix');
+const { processIncidentPipeline } = require('../services/autofix.service');
 
 let redis;
 let autofixQueue;

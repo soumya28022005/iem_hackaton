@@ -1,0 +1,302 @@
+const fs = require('fs/promises');
+const fsSync = require('fs');
+const path = require('path');
+const pdf = require('pdf-parse');
+const mammoth = require('mammoth');
+const OpenAI = require('openai');
+const { RecursiveCharacterTextSplitter } = require('langchain/text_splitter');
+const { ChatGroq } = require('@langchain/groq');
+const { ChatPromptTemplate } = require('@langchain/core/prompts');
+const { prisma } = require('../lib/prisma');
+const { config } = require('../lib/config');
+const { AppError } = require('../lib/http');
+const { embedDocuments, insertChunkWithEmbedding, similaritySearch } = require('./vector.service');
+
+const splitter = new RecursiveCharacterTextSplitter({
+  chunkSize: 1000,
+  chunkOverlap: 150,
+  separators: ['\n\n', '\n', '. ', '! ', '? ', ' '],
+});
+
+const AUDIO_MIMES = new Set([
+  'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav',
+  'audio/mp4', 'audio/m4a', 'audio/ogg', 'audio/webm',
+  'audio/flac', 'audio/x-flac', 'video/mp4', 'video/webm',
+]);
+
+const AUDIO_EXTS = new Set(['.mp3', '.wav', '.m4a', '.mp4', '.ogg', '.webm', '.flac', '.mpeg']);
+
+function isAudioFile(file) {
+  if (AUDIO_MIMES.has(file.mimetype)) return true;
+  const ext = path.extname(file.originalname || '').toLowerCase();
+  return AUDIO_EXTS.has(ext);
+}
+
+function getOpenAIClient() {
+  if (!config.OPENAI_API_KEY) return null;
+  return new OpenAI({
+    apiKey: config.OPENAI_API_KEY,
+    baseURL: config.OPENAI_BASE_URL,
+  });
+}
+
+async function transcribeAudio(filePath, originalName) {
+  const client = getOpenAIClient();
+  if (!client) throw new AppError(503, 'OPENAI_API_KEY required for audio transcription');
+
+  const fileStream = fsSync.createReadStream(filePath);
+  const ext = path.extname(originalName || '.mp3').toLowerCase() || '.mp3';
+  fileStream.path = `audio${ext}`;
+
+  const result = await client.audio.transcriptions.create({
+    file: fileStream,
+    model: 'whisper-1',
+    response_format: 'text',
+  });
+  return typeof result === 'string' ? result : result.text || '';
+}
+
+async function extractTextFromFile(file) {
+  const buffer = await fs.readFile(file.path);
+  const name = (file.originalname || '').toLowerCase();
+
+  if (file.mimetype === 'application/pdf' || name.endsWith('.pdf')) {
+    const parsed = await pdf(buffer);
+    return parsed.text;
+  }
+
+  if (
+    file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    || name.endsWith('.docx')
+  ) {
+    const result = await mammoth.extractRawText({ buffer });
+    return result.value;
+  }
+
+  if (isAudioFile(file)) {
+    return transcribeAudio(file.path, file.originalname);
+  }
+
+  return buffer.toString('utf8');
+}
+
+async function createSource({ workspaceId, name, sourceType = 'document', metadata = {}, content }) {
+  return prisma.source.create({
+    data: {
+      workspace_id: workspaceId,
+      name,
+      source_type: sourceType,
+      status: content ? 'processing' : 'pending',
+      metadata,
+    },
+  });
+}
+
+async function detectAndSaveTasks(workspaceId, sourceId, chunks) {
+  if (!config.GROQ_API_KEY || chunks.length === 0) return [];
+
+  const sampleText = chunks.slice(0, 10).map((c) => c.pageContent).join('\n\n').slice(0, 3000);
+
+  const llm = new ChatGroq({ apiKey: config.GROQ_API_KEY, model: config.GROQ_MODEL });
+  const prompt = ChatPromptTemplate.fromTemplate(`
+Extract action items and decisions from this team discussion. Return ONLY valid JSON array:
+[{{"title":"...", "description":"...", "priority":"low|medium|high", "assignee_hint":"name or null", "deadline_hint":"date string or null"}}]
+Return [] if no action items found.
+
+Text:
+{text}
+`);
+
+  let tasks = [];
+  try {
+    const chain = prompt.pipe(llm);
+    const response = await chain.invoke({ text: sampleText });
+    const content = response.content || '';
+    const match = content.match(/\[[\s\S]*\]/);
+    if (match) tasks = JSON.parse(match[0]);
+  } catch (_) {
+    return [];
+  }
+
+  if (!Array.isArray(tasks) || tasks.length === 0) return [];
+
+  const chunkRecord = await prisma.documentChunk.findFirst({
+    where: { source_id: sourceId },
+    select: { id: true, text: true },
+  });
+
+  const saved = await Promise.all(
+    tasks.slice(0, 10).map((t) =>
+      prisma.task.create({
+        data: {
+          workspace_id: workspaceId,
+          title: String(t.title || '').slice(0, 500),
+          description: t.description || null,
+          priority: ['low', 'medium', 'high', 'critical'].includes(t.priority) ? t.priority : 'medium',
+          assignee_hint: t.assignee_hint || null,
+          deadline_hint: t.deadline_hint || null,
+          source_chunk_id: chunkRecord?.id || null,
+          source_preview: chunkRecord?.text?.slice(0, 200) || null,
+          status: 'detected',
+        },
+      }).catch(() => null),
+    ),
+  );
+
+  return saved.filter(Boolean);
+}
+
+async function ingestText({ workspaceId, name, sourceType = 'document', text, metadata = {}, detectTasks = false }) {
+  if (!text || !text.trim()) throw new AppError(400, 'No text content found to ingest');
+
+  const source = await createSource({ workspaceId, name, sourceType, metadata, content: text });
+
+  try {
+    const docs = await splitter.createDocuments([text], [{
+      ...metadata,
+      workspace_id: workspaceId,
+      source_id: source.id,
+      source_type: sourceType,
+    }]);
+    const texts = docs.map((doc) => doc.pageContent);
+    const embeddings = await embedDocuments(texts);
+
+    for (let index = 0; index < docs.length; index += 1) {
+      await insertChunkWithEmbedding({
+        workspaceId,
+        sourceId: source.id,
+        chunkIndex: index,
+        text: docs[index].pageContent,
+        embedding: embeddings[index],
+        metadata: docs[index].metadata,
+      });
+    }
+
+    if (detectTasks) {
+      await detectAndSaveTasks(workspaceId, source.id, docs).catch(() => null);
+    }
+
+    return prisma.source.update({
+      where: { id: source.id },
+      data: { status: 'processed', processed_at: new Date() },
+    });
+  } catch (error) {
+    await prisma.source.update({
+      where: { id: source.id },
+      data: { status: 'failed', error_message: error.message },
+    });
+    throw error;
+  }
+}
+
+async function ingestFile({ workspaceId, file, metadata = {} }) {
+  const audioFile = isAudioFile(file);
+  const fileName = (file.originalname || '').toLowerCase();
+  const inferredType = fileName.endsWith('.md') || fileName.endsWith('.markdown') ? 'markdown' : 'document';
+  const sourceType = audioFile ? 'voice' : (metadata.source_type || metadata.sourceType || inferredType);
+  const text = await extractTextFromFile(file);
+  return ingestText({
+    workspaceId,
+    name: file.originalname,
+    sourceType,
+    text,
+    metadata: { ...metadata, original_name: file.originalname, mimetype: file.mimetype, size: file.size },
+    detectTasks: metadata.detect_tasks !== false && metadata.detectTasks !== false,
+  });
+}
+
+async function ingestIncidentMemory({ workspaceId, incidentId, analysis, fix, memoryContext }) {
+  const parts = [
+    `INCIDENT ANALYSIS — ${new Date().toISOString()}`,
+    analysis.root_cause ? `Root Cause: ${analysis.root_cause}` : '',
+    analysis.explanation ? `Explanation: ${analysis.explanation}` : '',
+    Array.isArray(analysis.affected_files) && analysis.affected_files.length
+      ? `Files: ${analysis.affected_files.join(', ')}`
+      : '',
+    fix.title ? `Fix: ${fix.title}` : '',
+    fix.explanation ? `Fix Explanation: ${fix.explanation}` : '',
+  ].filter(Boolean).join('\n');
+
+  if (!parts.trim()) return null;
+
+  return ingestText({
+    workspaceId,
+    name: `Incident #${incidentId} — AI Analysis`,
+    sourceType: 'incident',
+    text: parts,
+    metadata: {
+      source_type: 'incident',
+      incident_id: incidentId,
+      safety_score: fix.safety_score,
+    },
+  }).catch(() => null);
+}
+
+async function answerWithGroq(question, chunks) {
+  if (!chunks.length) return "I couldn't find this in your team's records.";
+
+  if (!config.GROQ_API_KEY) {
+    const preview = chunks[0].text.slice(0, 350);
+    return `I found relevant context, but GROQ_API_KEY is not configured. Top match: ${preview}`;
+  }
+
+  const llm = new ChatGroq({ apiKey: config.GROQ_API_KEY, model: config.GROQ_MODEL });
+  const prompt = ChatPromptTemplate.fromTemplate(`
+You are NexusOps Memory, an intelligent knowledge assistant for engineering teams.
+Answer based only on the provided context. If the answer is not present, say: "I couldn't find this in your team's records."
+Cite sources compactly when possible.
+
+Context:
+{context}
+
+Question: {question}
+`);
+
+  const chain = prompt.pipe(llm);
+  const response = await chain.invoke({
+    question,
+    context: chunks.map((chunk, index) => `[${index + 1}] ${chunk.text}`).join('\n\n'),
+  });
+
+  return response.content || String(response);
+}
+
+async function queryMemory({ workspaceId, question, userId }) {
+  const startedAt = Date.now();
+  const chunks = await similaritySearch(workspaceId, question, 8);
+  const filtered = chunks.filter((chunk) => !chunk.score || chunk.score >= 0.6).slice(0, 5);
+  const answer = await answerWithGroq(question, filtered);
+
+  const sources = filtered.slice(0, 3).map((chunk) => ({
+    id: chunk.id,
+    source_id: chunk.source_id,
+    content: chunk.text,
+    text: chunk.text,
+    metadata: chunk.metadata || {},
+    score: chunk.score,
+  }));
+
+  await prisma.queryHistory.create({
+    data: {
+      workspace_id: workspaceId,
+      user_id: userId || null,
+      question,
+      answer,
+      sources,
+      latency_ms: Date.now() - startedAt,
+      model_used: config.GROQ_MODEL,
+    },
+  }).catch(() => null);
+
+  return { answer, sources };
+}
+
+module.exports = {
+  createSource,
+  ingestFile,
+  ingestText,
+  ingestIncidentMemory,
+  queryMemory,
+  similaritySearch,
+  detectAndSaveTasks,
+};

@@ -3,7 +3,8 @@ const { ChatPromptTemplate } = require('@langchain/core/prompts');
 const { prisma } = require('../lib/prisma');
 const { config } = require('../lib/config');
 const { extractJsonObject } = require('../utils/json');
-const { similaritySearch } = require('./memory/memory.service');
+const { similaritySearch, ingestIncidentMemory } = require('./memory.service');
+const githubService = require('./github.service');
 
 const SECRET_PATTERNS = [
   { name: 'jwt', pattern: /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g },
@@ -129,14 +130,26 @@ async function buildMemoryContext(incident, analysis) {
   };
 }
 
-async function generateFix(incident, analysis, memoryContext) {
+async function fetchRepoFileContents(incident, affectedFiles) {
+  if (!incident.repository || !affectedFiles.length) return {};
+  const token = incident.repository.github_token || config.GITHUB_TOKEN;
+  if (!token || !incident.repository.full_name) return {};
+  return githubService.fetchMultipleFiles(incident.repository.full_name, affectedFiles, token).catch(() => ({}));
+}
+
+async function generateFix(incident, analysis, memoryContext, fileContents = {}) {
+  const fileContext = Object.entries(fileContents)
+    .filter(([, v]) => v !== null)
+    .map(([p, code]) => `File: ${p}\n\`\`\`\n${code.slice(0, 800)}\n\`\`\``)
+    .join('\n\n');
+
   const fallback = {
     title: `Review fix for ${incident.error_type || 'incident'}`,
     explanation: 'NexusOps generated a safe review stub. Add repository context to produce a concrete patch.',
     diff: '',
-    confidence: 0.4,
+    confidence: fileContext ? 0.55 : 0.4,
     file_changes: [],
-    caveats: ['No source file contents were fetched in the MVP safe-stub pipeline.'],
+    caveats: fileContext ? [] : ['No source file contents were fetched.'],
   };
 
   return invokeJson(`
@@ -154,10 +167,12 @@ Return ONLY valid JSON:
 Incident error: {error}
 Analysis: {analysis}
 Team memory: {memory}
+Source files: {files}
 `, {
     error: incident.sanitized_error || incident.error_message || '',
     analysis: JSON.stringify(analysis),
     memory: JSON.stringify(memoryContext),
+    files: fileContext || 'Not available',
   }, fallback);
 }
 
@@ -220,11 +235,13 @@ async function processIncidentPipeline(incidentId) {
 
     const memoryContext = await buildMemoryContext(incident, analysis);
 
+    const fileContents = await fetchRepoFileContents(incident, analysis.affected_files || []);
+
     await setIncidentStatus(incidentId, 'generating_fix', {
       memory_context: memoryContext,
     });
 
-    const fix = await generateFix(incident, analysis, memoryContext);
+    const fix = await generateFix(incident, analysis, memoryContext, fileContents);
     const safety = safetyCheck(fix);
 
     const savedFix = await prisma.fix.create({
@@ -245,6 +262,15 @@ async function processIncidentPipeline(incidentId) {
 
     await setIncidentStatus(incidentId, safety.safety_score === 'BLOCKED' ? 'fix_blocked' : 'resolved');
 
+    // Index fix + analysis back into memory for future incident correlation
+    await ingestIncidentMemory({
+      workspaceId: incident.workspace_id,
+      incidentId,
+      analysis,
+      fix: { ...fix, safety_score: safety.safety_score },
+      memoryContext,
+    });
+
     await prisma.activityLog.create({
       data: {
         workspace_id: incident.workspace_id,
@@ -263,9 +289,208 @@ async function processIncidentPipeline(incidentId) {
   }
 }
 
+async function getRepositories(workspaceId) {
+  return prisma.repository.findMany({
+    where: { workspace_id: workspaceId },
+    orderBy: { created_at: 'desc' },
+  });
+}
+
+async function connectRepository(data) {
+  return prisma.repository.create({
+    data: {
+      workspace_id: data.workspace_id,
+      name: data.name || data.full_name.split('/').pop(),
+      full_name: data.full_name,
+      default_branch: data.default_branch,
+      branch: data.default_branch,
+      github_token: data.github_token,
+      language: data.language,
+      is_private: data.is_private,
+    },
+  });
+}
+
+async function deleteRepository(id) {
+  return prisma.repository.delete({ where: { id } });
+}
+
+async function getIncidents(workspaceId) {
+  return prisma.incident.findMany({
+    where: { workspace_id: workspaceId },
+    orderBy: { created_at: 'desc' },
+    include: { fixes: { orderBy: { created_at: 'desc' }, take: 1 } },
+  });
+}
+
+async function createManualIncident(data) {
+  return prisma.incident.create({
+    data: {
+      workspace_id: data.workspace_id,
+      repository_id: data.repository_id || null,
+      raw_error: data.error_message,
+      raw_stack_trace: data.stack_trace,
+      error_type: data.error_type,
+      error_message: data.error_message,
+      stack_trace: data.stack_trace,
+      severity: data.severity,
+      environment: data.environment,
+      source: 'manual',
+      status: 'received',
+    },
+  });
+}
+
+async function getIncidentById(id) {
+  return prisma.incident.findUnique({
+    where: { id: id },
+    include: {
+      repository: true,
+      fixes: { orderBy: { created_at: 'desc' } },
+    },
+  });
+}
+
+async function updateIncidentStatus(id, status) {
+  const data = { status: String(status) };
+  if (status === 'resolved') data.resolved_at = new Date();
+  return prisma.incident.update({ where: { id }, data });
+}
+
+async function retryIncident(id) {
+  return prisma.incident.update({
+    where: { id },
+    data: { status: 'received', pipeline_error: null },
+  });
+}
+
+async function getFixesByIncidentId(incidentId) {
+  return prisma.fix.findMany({
+    where: { incident_id: incidentId },
+    orderBy: { created_at: 'desc' },
+  });
+}
+
+async function createPR(fixId, overrideToken) {
+  const fix = await prisma.fix.findUnique({
+    where: { id: fixId },
+    include: { incident: { include: { repository: true } } },
+  });
+  if (!fix) throw new Error('Fix not found');
+  if (fix.pr_url) throw new Error('PR already created');
+
+  const { incident } = fix;
+  const repo = incident.repository;
+  if (!repo) throw new Error('No repository linked to this incident');
+
+  const token = overrideToken || repo.github_token || config.GITHUB_TOKEN;
+  if (!token) throw new Error('No GitHub token available');
+
+  const fileChanges = Array.isArray(fix.file_changes) ? fix.file_changes : [];
+  if (fileChanges.length === 0) throw new Error('Fix has no file changes to commit');
+
+  const branchName = `nexusops/fix-${fixId.slice(0, 8)}-${Date.now()}`;
+  const baseBranch = repo.branch || repo.default_branch || 'main';
+
+  await githubService.createBranch(repo.full_name, baseBranch, branchName, token);
+
+  for (const change of fileChanges) {
+    if (!change.path || !change.fixed_code) continue;
+    await githubService.commitFileChange(
+      repo.full_name,
+      branchName,
+      change.path,
+      change.fixed_code,
+      `fix: ${change.change_summary || fix.title}`,
+      token,
+    );
+  }
+
+  const prBody = [
+    `## NexusOps AutoFix\n`,
+    fix.explanation || '',
+    fix.diff ? `\n### Diff\n\`\`\`diff\n${fix.diff.slice(0, 3000)}\n\`\`\`` : '',
+    `\n### Caveats\n${(fix.caveats || []).map((c) => `- ${c}`).join('\n')}`,
+    `\n*Generated by NexusOps — confidence: ${((fix.confidence || 0) * 100).toFixed(0)}%*`,
+  ].filter(Boolean).join('\n');
+
+  const pr = await githubService.createPullRequest(repo.full_name, {
+    title: fix.title || 'NexusOps AutoFix',
+    body: prBody,
+    head: branchName,
+    base: baseBranch,
+  }, token);
+
+  await prisma.fix.update({ where: { id: fixId }, data: { pr_url: pr.url, status: 'pr_created' } });
+  await prisma.incident.update({
+    where: { id: incident.id },
+    data: { pr_url: pr.url, pr_number: pr.number, pr_branch: branchName, pr_created_at: new Date() },
+  });
+
+  await prisma.activityLog.create({
+    data: {
+      workspace_id: incident.workspace_id,
+      module: 'autofix',
+      action: 'pr_created',
+      resource_type: 'fix',
+      resource_id: fixId,
+      metadata: { pr_url: pr.url, pr_number: pr.number, repository: repo.full_name },
+    },
+  }).catch(() => null);
+
+  return pr;
+}
+
+async function reviewFix(fixId, { reviewerId, status, reviewNote }) {
+  const normalized = String(status || '').toLowerCase();
+  const allowed = new Set(['approved', 'rejected', 'needs_changes']);
+  if (!allowed.has(normalized)) throw new Error('status must be approved, rejected, or needs_changes');
+
+  const fix = await prisma.fix.findUnique({
+    where: { id: fixId },
+    include: { incident: true },
+  });
+  if (!fix) throw new Error('Fix not found');
+
+  const reviewed = await prisma.fix.update({
+    where: { id: fixId },
+    data: {
+      status: normalized,
+      reviewed_by: reviewerId,
+      reviewed_at: new Date(),
+      review_note: reviewNote || null,
+    },
+  });
+
+  await prisma.activityLog.create({
+    data: {
+      workspace_id: fix.incident.workspace_id,
+      user_id: reviewerId || null,
+      module: 'autofix',
+      action: `fix_${normalized}`,
+      resource_type: 'fix',
+      resource_id: fixId,
+      metadata: { incident_id: fix.incident_id, review_note: reviewNote || null },
+    },
+  }).catch(() => null);
+
+  return reviewed;
+}
+
 module.exports = {
   processIncidentPipeline,
   sanitizeText,
   parseStackFiles,
   safetyCheck,
+  getRepositories,
+  connectRepository,
+  deleteRepository,
+  getIncidents,
+  createManualIncident,
+  getIncidentById,
+  updateIncidentStatus,
+  retryIncident,
+  getFixesByIncidentId,
+  createPR,
+  reviewFix,
 };
