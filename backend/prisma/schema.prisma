@@ -116,7 +116,7 @@ model DocumentChunk {
   source_id    String                 @db.Uuid
   chunk_index  Int
   text         String                 @db.Text
-  embedding    Unsupported("vector")?
+  embedding    Unsupported("vector(1536)")?
   metadata     Json                   @default("{}")
   sender       String?                @db.VarChar(255)
   timestamp    DateTime?
