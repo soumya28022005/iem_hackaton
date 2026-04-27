@@ -46,6 +46,10 @@ try {
       options.projectId = process.env.FIREBASE_PROJECT_ID;
     }
 
+    if (process.env.FIREBASE_STORAGE_BUCKET) {
+      options.storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+    }
+
     admin.initializeApp(options);
     console.log(`Firebase Admin initialized successfully for project: ${options.projectId || 'default'}`);
   }

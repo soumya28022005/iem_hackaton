@@ -30,6 +30,8 @@ const envSchema = z.object({
   FIREBASE_PROJECT_ID: z.string().optional(),
   FIREBASE_WEB_API_KEY: z.string().optional(),
   SENTRY_WEBHOOK_SECRET: z.string().optional(),
+  VERCEL_TOKEN: z.string().optional(),
+  RAILWAY_TOKEN: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

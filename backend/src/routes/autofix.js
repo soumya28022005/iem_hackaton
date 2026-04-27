@@ -21,4 +21,7 @@ router.get('/fixes/incident/:incidentId', asyncHandler(autofixController.getFixe
 router.post('/fixes/:fixId/create-pr', asyncHandler(autofixController.createPR));
 router.post('/fixes/:fixId/review', asyncHandler(autofixController.reviewFix));
 
+router.get('/reverts/', requireWorkspaceAccess, asyncHandler(autofixController.getRevertHistory));
+router.post('/reverts/trigger', requireWorkspaceAccess, asyncHandler(autofixController.triggerRevert));
+
 module.exports = router;

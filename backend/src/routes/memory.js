@@ -24,6 +24,7 @@ router.get('/tasks/', requireWorkspaceAccess, asyncHandler(memoryController.getT
 router.patch('/tasks/:id', asyncHandler(memoryController.updateTask));
 router.post('/tasks/:id/jira', asyncHandler(memoryController.syncTaskToJira));
 
-router.get('/problems/', requireWorkspaceAccess, asyncHandler(memoryController.getProblems));
+router.get('/problems', requireWorkspaceAccess, asyncHandler(memoryController.getProblems));
+router.post('/problems/detect', requireWorkspaceAccess, asyncHandler(memoryController.detectProblems));
 
 module.exports = router;

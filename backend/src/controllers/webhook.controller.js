@@ -22,7 +22,11 @@ function verifyHmac(req) {
     .digest('hex');
 
   const actual = String(signature).replace(/^sha256=/, '');
-  return crypto.timingSafeEqual(Buffer.from(actual), Buffer.from(expected));
+  const actualBuffer = Buffer.from(actual);
+  const expectedBuffer = Buffer.from(expected);
+
+  if (actualBuffer.length !== expectedBuffer.length) return false;
+  return crypto.timingSafeEqual(actualBuffer, expectedBuffer);
 }
 
 function parseSentryPayload(payload) {

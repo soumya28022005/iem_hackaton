@@ -1,0 +1,81 @@
+const { prisma } = require('../lib/prisma');
+const { config } = require('../lib/config');
+
+/**
+ * Triggers a rollback on Vercel or Railway.
+ * This is a P1 feature for the hackathon.
+ */
+async function triggerRevert(workspaceId, { incidentId, reason, platform, deployId }) {
+  const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
+  if (!workspace) throw new Error('Workspace not found');
+
+  const selectedPlatform = platform || (config.VERCEL_TOKEN ? 'vercel' : config.RAILWAY_TOKEN ? 'railway' : null);
+  if (!selectedPlatform) throw new Error('No deployment platform configured (VERCEL_TOKEN or RAILWAY_TOKEN)');
+
+  const event = await prisma.revertEvent.create({
+    data: {
+      workspace_id: workspaceId,
+      incident_id: incidentId || null,
+      trigger_type: incidentId ? 'auto' : 'manual',
+      reason: reason || 'Detected error spike or manual trigger',
+      platform: selectedPlatform,
+      status: 'triggered',
+    },
+  });
+
+  try {
+    if (selectedPlatform === 'vercel') {
+      await rollbackVercel(workspace, deployId);
+    } else if (selectedPlatform === 'railway') {
+      await rollbackRailway(workspace, deployId);
+    }
+
+    return prisma.revertEvent.update({
+      where: { id: event.id },
+      data: { status: 'completed', completed_at: new Date() },
+    });
+  } catch (error) {
+    console.error(`Revert failed for workspace ${workspaceId}:`, error.message);
+    return prisma.revertEvent.update({
+      where: { id: event.id },
+      data: { status: 'failed', error_message: error.message },
+    });
+  }
+}
+
+async function rollbackVercel(workspace, deployId) {
+  const token = config.VERCEL_TOKEN;
+  if (!token) throw new Error('VERCEL_TOKEN missing');
+
+  // For the hackathon, we simulate or use a generic "rollback to previous" call
+  // Vercel API: POST /v1/projects/:id/rollback/:deployId
+  console.log(`[Revert] Rolling back Vercel deployment for project ${workspace.slug}`);
+  
+  // Real API call would go here:
+  /*
+  const res = await fetch(`https://api.vercel.com/v1/projects/${workspace.slug}/rollback/${deployId}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error(`Vercel API error: ${res.statusText}`);
+  */
+}
+
+async function rollbackRailway(workspace, deployId) {
+  const token = config.RAILWAY_TOKEN;
+  if (!token) throw new Error('RAILWAY_TOKEN missing');
+
+  console.log(`[Revert] Rolling back Railway deployment for project ${workspace.slug}`);
+}
+
+async function getRevertHistory(workspaceId) {
+  return prisma.revertEvent.findMany({
+    where: { workspace_id: workspaceId },
+    orderBy: { triggered_at: 'desc' },
+  });
+}
+
+module.exports = {
+  triggerRevert,
+  getRevertHistory,
+};

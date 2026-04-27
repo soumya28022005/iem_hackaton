@@ -17,8 +17,9 @@
 
 [![Version](https://img.shields.io/badge/version-2.0.4-6D28D9?style=flat-square)](https://github.com/soumyachk101/NexusOps-2.0/releases)
 [![License](https://img.shields.io/badge/license-MIT-0F6E56?style=flat-square)](./LICENSE)
-[![Python](https://img.shields.io/badge/python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.111-05998B?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Node.js](https://img.shields.io/badge/node-20.x-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/typescript-5.6-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![LangChain](https://img.shields.io/badge/LangChain.js-0.3-1C3C3C?style=flat-square)](https://js.langchain.com)
 [![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js)](https://nextjs.org)
 [![Docker](https://img.shields.io/badge/docker-compose-2496ED?style=flat-square&logo=docker&logoColor=white)](https://docker.com)
 
@@ -66,8 +67,8 @@ NexusOps unifies three pillars into a single cohesive workflow:
 | Pillar | What it does |
 |---|---|
 | **Event Ingestion** | Consumes webhooks from Sentry, custom telemetry pipelines, and Telegram |
-| **Memory Enrichment** | Augments each incident with semantically similar past events and runbooks via pgvector |
-| **AI Remediation** | Generates root cause analysis and a draft code fix via Groq LLaMA 3.3 in < 500ms |
+| **Memory Enrichment** | Augments each incident with semantically similar past events and runbooks via LangChain.js + pgvector |
+| **AI Remediation** | Generates root cause analysis and a draft code fix via Claude Sonnet 4 through LangChain LCEL chains |
 
 No auto-merges. No silent deployments. Every fix is a Draft Pull Request reviewed by a human engineer.
 
@@ -81,23 +82,23 @@ NexusOps is designed as a distributed, event-driven system with strict separatio
 graph TD
     subgraph INGESTION ["⬛ Ingestion Mesh"]
         A1[🔴 Sentry Webhooks]
-        A2[✈️ Telegram Bot API]
+        A2[✈️ Telegram Bot — Telegraf]
         A3[📡 Custom Telemetry]
     end
 
     subgraph INTELLIGENCE ["🟣 Intelligence Layer"]
-        B1[⚡ FastAPI Gateway]
+        B1[⚡ Express.js + TypeScript Gateway]
         B2[🛡️ PII & Secret Sanitizer]
-        B3[🧠 Memory Enrichment Engine]
-        B4[🗄️ PostgreSQL + pgvector]
-        B5[⚙️ Pipeline Controller]
+        B3[🧠 LangChain Memory Enrichment]
+        B4[🗄️ PostgreSQL + pgvector\nPGVectorStore]
+        B5[⚙️ BullMQ Pipeline Controller]
         B6[(🔴 Redis Cache & Queue)]
     end
 
     subgraph RESOLUTION ["🟢 Resolution Layer"]
-        C1[🤖 Groq LLaMA 3.3 — 70B]
-        C2[🔧 AutoFix Code Generator]
-        C3[📬 GitHub Draft PR]
+        C1[🤖 Claude Sonnet 4\nvia ChatAnthropic LangChain]
+        C2[🔧 LCEL AutoFix Chain\nRunnableSequence + JsonOutputParser]
+        C3[📬 GitHub Draft PR — Octokit]
         C4[🖥️ Cinematic Dashboard]
         C5[📩 Telegram Notification]
     end
@@ -129,27 +130,29 @@ graph TD
 sequenceDiagram
     autonumber
     participant SW as Sentry Webhook
-    participant GW as FastAPI Gateway
+    participant GW as Express.js Gateway
     participant SN as PII Sanitizer
-    participant ME as Memory Engine
+    participant ME as LangChain Memory Engine
     participant DB as PostgreSQL + pgvector
-    participant CQ as Celery + Redis
-    participant AI as Groq LLaMA 3.3
-    participant GH as GitHub
-    participant TG as Telegram
+    participant BQ as BullMQ + Redis
+    participant AI as Claude Sonnet 4 (LangChain)
+    participant GH as GitHub (Octokit)
+    participant TG as Telegram (Telegraf)
 
-    SW->>GW: POST /webhooks/sentry (HMAC verified)
+    SW->>GW: POST /webhook/sentry (HMAC verified)
     GW->>SN: Raw incident payload
     SN->>SN: Strip API keys, IPs, emails (local)
     SN->>ME: Sanitized payload
-    ME->>DB: Cosine similarity query (top-k)
+    ME->>DB: PGVectorStore.similaritySearchWithScore (top-k, threshold 0.60)
     DB-->>ME: Relevant past incidents + runbooks
-    ME->>CQ: Enqueue enriched incident task
-    CQ->>AI: Sanitized trace + memory context
-    AI-->>CQ: Root cause + fix + confidence score
-    CQ->>GH: Create Draft Pull Request
-    CQ->>TG: Notify team with confidence badge
-    CQ->>GW: Update incident status → RESOLVED
+    ME->>BQ: Enqueue enriched incident job
+    BQ->>AI: analysisChain.invoke() — sanitized trace + memory context
+    AI-->>BQ: JsonOutputParser → { rootCause, affectedFiles, confidence }
+    BQ->>AI: fixGenerationChain.invoke() — code + memory summary
+    AI-->>BQ: JsonOutputParser → { fileChanges, explanation }
+    BQ->>GH: Octokit — create branch + commit + Draft PR
+    BQ->>TG: Telegraf notify — PR link + confidence badge
+    BQ->>GW: Update incident status → RESOLVED (Prisma)
 ```
 
 ---
@@ -158,25 +161,25 @@ sequenceDiagram
 
 ### Memory Engine
 
-The Memory Engine is the primary differentiator of NexusOps. Built on `pgvector` with cosine similarity search, it maintains a continuously updated knowledge base drawn from:
+The Memory Engine is the primary differentiator of NexusOps. Built on `PGVectorStore` from `@langchain/community` with cosine similarity search, it maintains a continuously updated knowledge base drawn from:
 
-- **Incident History** — Every resolved incident is vectorized and stored. When a new incident arrives, the top-k most semantically similar past events are surfaced.
-- **Team Discussions** — Telegram and Slack threads are indexed automatically, capturing informal tribal knowledge that never makes it into runbooks.
-- **Runbooks & Internal Documentation** — Structured documentation ingested and chunked for retrieval.
+- **Incident History** — Every resolved incident is vectorized via `OpenAIEmbeddings` and stored. When a new incident arrives, the top-k most semantically similar past events are surfaced.
+- **Team Discussions** — Telegram threads ingested via Telegraf are chunked with LangChain's `RecursiveCharacterTextSplitter` and indexed automatically, capturing informal tribal knowledge that never makes it into runbooks.
+- **Runbooks & Internal Documentation** — Structured documentation ingested, chunked, and stored via `PGVectorStore.addDocuments()`.
 
 > **Why this matters:** An SRE triaging a `NullPointerException` in a payment service at 2 AM needs to know that the same error surfaced 3 months ago because of a race condition in the order fulfillment pipeline — and that the fix was a 2-line database transaction scope change. NexusOps surfaces this in the incident brief automatically.
 
 ### AutoFix Engine
 
-Powered by **Groq's LLaMA 3.3 70B Versatile**, the AutoFix Engine provides sub-500ms inference with:
+Powered by **Claude Sonnet 4** via LangChain's `ChatAnthropic`, the AutoFix Engine uses LCEL `RunnableSequence` chains with `JsonOutputParser` for structured, type-safe output:
 
 | Property | Detail |
 |---|---|
-| **Inference Latency** | < 500ms (Groq's hardware-accelerated inference) |
+| **Chain Pattern** | `analysisPrompt \| ChatAnthropic \| JsonOutputParser` |
 | **Input** | Sanitized stack trace + enriched memory context |
 | **Output** | Root cause analysis + line-level code fix + confidence score |
 | **Confidence Tiers** | `SAFE` · `REVIEW` · `BLOCKED` |
-| **Output Artifact** | GitHub Draft Pull Request with cited context |
+| **Output Artifact** | GitHub Draft PR (via Octokit) with cited memory context |
 
 ### Cinematic Dashboard
 
@@ -188,7 +191,7 @@ NexusOps treats data privacy as a first-class architectural constraint, not an a
 
 - **Local PII Sanitization** — All secrets, API keys, email addresses, and IP addresses are stripped at the ingestion gateway using a deterministic regex engine before any data leaves the system boundary.
 - **Cryptographic Audit Logs** — Every AI inference action is hashed and logged with full attribution to a specific incident ID and user.
-- **Draft-Only PRs** — NexusOps is architecturally incapable of merging code. It creates Draft Pull Requests only. Merge authority belongs exclusively to the human engineer.
+- **Draft-Only PRs** — NexusOps is architecturally incapable of merging code. It creates Draft Pull Requests only via Octokit. Merge authority belongs exclusively to the human engineer.
 
 ---
 
@@ -198,13 +201,17 @@ NexusOps treats data privacy as a first-class architectural constraint, not an a
 
 | Layer | Technology | Purpose |
 |---|---|---|
-| Runtime | Python 3.12 | Core application runtime |
-| Framework | FastAPI 0.111 | Async HTTP gateway, OpenAPI spec generation |
-| ORM | SQLAlchemy 2.x (Async) | Database abstraction with async session management |
-| Task Queue | Celery + Redis | Async incident processing pipeline |
-| Vector Search | pgvector (PostgreSQL) | Semantic similarity for memory enrichment |
-| AI Inference | Groq API — LLaMA 3.3 70B | Sub-500ms root cause analysis |
-| Validation | Pydantic v2 | Request/response schema enforcement |
+| Runtime | Node.js 20.x + TypeScript 5.6 | Core application runtime, unified JS/TS stack |
+| Framework | Express.js 4.x | Async HTTP gateway, middleware pipeline |
+| ORM | Prisma ORM + Prisma Migrate | Type-safe DB access, pgvector extension, migrations |
+| Task Queue | BullMQ + Redis | Async incident processing, repeatable scheduled jobs |
+| RAG Framework | LangChain.js (`langchain`, `@langchain/core`) | LCEL chains, retrieval, chunking, output parsers |
+| Vector Store | `PGVectorStore` (`@langchain/community`) | LangChain-native pgvector retriever |
+| LLM | `ChatAnthropic` (`@langchain/anthropic`) — Claude Sonnet 4 | Root cause analysis + fix generation |
+| Embeddings | `OpenAIEmbeddings` (`@langchain/openai`) — text-embedding-3-small | 1536-dim semantic vectors |
+| Text Splitting | `RecursiveCharacterTextSplitter` (LangChain.js) | Semantic chunking for ingestion pipeline |
+| Telegram | Telegraf v4 | Team message + voice ingestion + notifications |
+| GitHub | `@octokit/rest` | Code fetch, branch create, Draft PR creation |
 
 ### Frontend
 
@@ -221,9 +228,9 @@ NexusOps treats data privacy as a first-class architectural constraint, not an a
 | Component | Technology |
 |---|---|
 | Container Orchestration | Docker Compose |
-| Primary Database | PostgreSQL 16 + pgvector |
-| Cache & Broker | Redis 7 (Upstash-compatible) |
-| Version Control Integration | GitHub REST API v3 |
+| Primary Database | PostgreSQL 15 + pgvector extension |
+| Cache & Broker | Redis 7 (Upstash-compatible) + BullMQ |
+| Version Control Integration | GitHub REST API v3 (Octokit) |
 | Monitoring Ingestion | Sentry Webhook API |
 
 ---
@@ -235,13 +242,13 @@ NexusOps treats data privacy as a first-class architectural constraint, not an a
 Ensure the following are installed and configured on your development machine:
 
 - **Node.js** `>= 20.x` — [Download](https://nodejs.org)
-- **Python** `>= 3.12` — [Download](https://python.org)
 - **Docker** `>= 24.x` and **Docker Compose** `>= 2.x` — [Download](https://docker.com)
 - **Git** — [Download](https://git-scm.com)
 
 You will also need the following API credentials:
 
-- `GROQ_API_KEY` — [Obtain from Groq Console](https://console.groq.com)
+- `ANTHROPIC_API_KEY` — [Obtain from Anthropic Console](https://console.anthropic.com)
+- `OPENAI_API_KEY` — For `text-embedding-3-small` embeddings
 - `GITHUB_TOKEN` — Personal Access Token with `repo` scope
 - `SENTRY_WEBHOOK_SECRET` — From your Sentry project's webhook settings
 
@@ -249,7 +256,7 @@ You will also need the following API credentials:
 
 ### Quick Start with Docker
 
-The fastest path to a running instance. Spins up the full stack — PostgreSQL, Redis, backend, and frontend — with a single command.
+The fastest path to a running instance. Spins up the full stack — PostgreSQL, Redis, backend, BullMQ worker, and frontend — with a single command.
 
 ```bash
 # 1. Clone the repository
@@ -261,16 +268,16 @@ cp backend/.env.example backend/.env
 cp frontend/.env.local.example frontend/.env.local
 
 # 3. Populate your credentials in backend/.env
-#    (GROQ_API_KEY, DATABASE_URL, GITHUB_TOKEN, SENTRY_WEBHOOK_SECRET)
+#    (ANTHROPIC_API_KEY, OPENAI_API_KEY, DATABASE_URL, GITHUB_TOKEN, SENTRY_WEBHOOK_SECRET)
 
 # 4. Build and start all services
 docker-compose up --build
 
-# 5. Run database migrations (first-time setup)
-docker-compose exec backend alembic upgrade head
+# 5. Run Prisma migrations (first-time setup)
+docker-compose exec backend npx prisma migrate deploy
 
-# 6. Seed vector extensions
-docker-compose exec backend python -m scripts.seed_pgvector
+# 6. Seed pgvector extension
+docker-compose exec backend npx ts-node scripts/seedPgvector.ts
 ```
 
 The application will be available at:
@@ -279,7 +286,7 @@ The application will be available at:
 |---|---|
 | Frontend Dashboard | `http://localhost:3000` |
 | Backend API | `http://localhost:8000` |
-| API Documentation | `http://localhost:8000/docs` |
+| API Documentation | `http://localhost:8000/api-docs` |
 | PostgreSQL | `localhost:5432` |
 | Redis | `localhost:6379` |
 
@@ -310,19 +317,19 @@ docker-compose up postgres redis -d
 ```bash
 cd backend
 
-# Create and activate a virtual environment
-python -m venv venv
-source venv/bin/activate        # Linux / macOS
-# venv\Scripts\activate         # Windows
-
 # Install dependencies
-pip install -r requirements.txt
+npm install
+
+# Generate Prisma client
+npx prisma generate
 
 # Apply database migrations
-alembic upgrade head
+npx prisma migrate dev
 
 # Start the development server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+npx ts-node src/index.ts
+# or with hot reload:
+npx tsx watch src/index.ts
 ```
 
 **4. Frontend setup**
@@ -337,12 +344,11 @@ npm install
 npm run dev
 ```
 
-**5. Start the Celery worker** (separate terminal)
+**5. Start the BullMQ worker** (separate terminal)
 
 ```bash
 cd backend
-source venv/bin/activate
-celery -A app.worker worker --loglevel=info
+npx ts-node src/workers/queue.ts
 ```
 
 ---
@@ -355,33 +361,41 @@ All configuration is managed via environment variables. Never commit `.env` file
 
 ```env
 # ── Application ─────────────────────────────────────────────────────
-APP_ENV=development
+NODE_ENV=development
 SECRET_KEY=your-secret-key-minimum-32-characters
-DEBUG=true
+PORT=8000
 
 # ── Database ─────────────────────────────────────────────────────────
-DATABASE_URL=postgresql+asyncpg://nexusops:password@localhost:5432/nexusops
+DATABASE_URL=postgresql://nexusops:password@localhost:5432/nexusops
 PGVECTOR_DIMENSIONS=1536
 
-# ── Redis / Celery ────────────────────────────────────────────────────
-REDIS_URL=redis://localhost:6379/0
-CELERY_BROKER_URL=redis://localhost:6379/1
-CELERY_RESULT_BACKEND=redis://localhost:6379/2
+# ── Redis / BullMQ ────────────────────────────────────────────────────
+REDIS_URL=redis://localhost:6379
 
-# ── AI Inference ─────────────────────────────────────────────────────
-GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxx
-GROQ_MODEL=llama-3.3-70b-versatile
-GROQ_MAX_TOKENS=2048
+# ── AI Inference (LangChain) ─────────────────────────────────────────
+ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxxxxxx
+OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxx
 MEMORY_TOP_K=5                     # Number of similar incidents to retrieve
+SIMILARITY_THRESHOLD=0.60          # Minimum cosine similarity score
 
 # ── Integrations ─────────────────────────────────────────────────────
 GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
-GITHUB_OWNER=your-org-or-username
-GITHUB_REPO=your-target-repository
+GITHUB_CLIENT_ID=your-github-oauth-client-id
+GITHUB_CLIENT_SECRET=your-github-oauth-client-secret
 
 SENTRY_WEBHOOK_SECRET=your-sentry-webhook-secret
 TELEGRAM_BOT_TOKEN=your-telegram-bot-token
 TELEGRAM_CHAT_ID=your-chat-id
+
+# ── Jira ─────────────────────────────────────────────────────────────
+JIRA_BASE_URL=https://team.atlassian.net
+JIRA_API_TOKEN=your-jira-api-token
+JIRA_USER_EMAIL=your-jira-email
+
+# ── Storage ──────────────────────────────────────────────────────────
+CLOUDFLARE_R2_ACCESS_KEY=your-r2-access-key
+CLOUDFLARE_R2_SECRET_KEY=your-r2-secret-key
+CLOUDFLARE_R2_BUCKET=nexusops
 
 # ── Sanitizer ────────────────────────────────────────────────────────
 SANITIZER_ENABLED=true
@@ -393,28 +407,34 @@ SANITIZER_LOG_REDACTIONS=true
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000
 NEXT_PUBLIC_APP_ENV=development
+NEXTAUTH_SECRET=your-nextauth-secret
+NEXTAUTH_URL=http://localhost:3000
+NEXT_PUBLIC_GITHUB_CLIENT_ID=your-github-client-id
 ```
 
 ---
 
 ## 📡 API Reference
 
-Full interactive documentation is available at `/docs` (Swagger UI) and `/redoc` (ReDoc) when the backend is running.
+Full interactive documentation is available at `/api-docs` (Swagger via `swagger-ui-express`) when the backend is running.
 
 ### Key Endpoints
 
 ```
-POST   /api/v1/webhooks/sentry          Receive Sentry error events
-POST   /api/v1/webhooks/custom          Receive custom telemetry payloads
+POST   /webhook/sentry/:projectToken    Receive Sentry error events (HMAC verified)
+POST   /webhook/error/:projectToken     Receive custom telemetry payloads
 
-GET    /api/v1/incidents                List all incidents (paginated)
-GET    /api/v1/incidents/{id}           Get incident detail with memory context
-PATCH  /api/v1/incidents/{id}/resolve   Mark incident as resolved
+GET    /api/v1/autofix/incidents        List all incidents (paginated)
+GET    /api/v1/autofix/incidents/:id    Get incident detail with memory context
+PATCH  /api/v1/autofix/incidents/:id/status   Dismiss or resolve incident
+POST   /api/v1/autofix/incidents/:id/retry    Re-enqueue BullMQ fix job
 
-POST   /api/v1/memory/ingest            Ingest a document into the memory store
-GET    /api/v1/memory/search            Semantic search across the memory store
+POST   /api/v1/memory/ingest/document   Ingest a document into PGVectorStore
+POST   /api/v1/memory/query             LangChain RAG Q&A (createRetrievalChain)
+GET    /api/v1/memory/search            Semantic search — PGVectorStore.similaritySearch
 
-GET    /api/v1/health                   Health check (liveness + readiness)
+GET    /api/v1/nexus/dashboard          Unified stats for both modules
+GET    /health                          Health check (liveness + readiness)
 ```
 
 ---
@@ -426,8 +446,8 @@ flowchart TD
     EXT([🌐 External Input\nSentry · Telegram · Telemetry])
 
     subgraph BOUNDARY ["🔒 Trust Boundary — NexusOps System"]
-        HMAC[✅ HMAC Webhook Verification]
-        RATE[🚦 Rate Limiter]
+        HMAC[✅ HMAC — crypto.timingSafeEqual]
+        RATE[🚦 Rate Limiter — Redis backed]
 
         subgraph LOCAL ["Runs Locally — Never Leaves System"]
             SAN["🛡️ PII Sanitizer\n──────────────────\nAPI keys · JWT tokens\nEmails · IP addresses\nAWS/GCP secrets · Private keys"]
@@ -436,22 +456,22 @@ flowchart TD
         LOG[📋 Cryptographic Audit Logger\nAction hash · Actor · Incident ID]
     end
 
-    GROQ([🤖 Groq API\nSanitized payload only])
-    GH([📬 GitHub\nDraft PR — no merge scope])
+    CLAUDE([🤖 Claude Sonnet 4 via LangChain\nSanitized payload only])
+    GH([📬 GitHub via Octokit\nDraft PR — no merge scope])
 
     EXT --> HMAC --> RATE --> SAN
-    SAN -- "Sanitized payload only" --> GROQ
-    GROQ --> LOG
+    SAN -- "Sanitized payload only" --> CLAUDE
+    CLAUDE --> LOG
     LOG --> GH
 
     style BOUNDARY fill:#0f172a,stroke:#6D28D9,color:#e2e8f0
     style LOCAL fill:#1e293b,stroke:#059669,color:#e2e8f0
 ```
 
-- **HMAC Verification** — All incoming webhooks are verified against a shared secret before processing.
-- **JWT Authentication** — Dashboard access requires a signed JWT with configurable expiry.
-- **Rate Limiting** — FastAPI middleware enforces per-IP and per-endpoint rate limits.
-- **Draft PRs Only** — The GitHub integration is scoped to `pull_request:write`. It cannot push directly to any branch.
+- **HMAC Verification** — All incoming webhooks verified via `crypto.timingSafeEqual` against a shared secret before processing.
+- **JWT Authentication** — Dashboard access requires a signed JWT with configurable expiry (Express middleware).
+- **Rate Limiting** — Express middleware enforces per-IP and per-workspace rate limits via Redis.
+- **Draft PRs Only** — The Octokit integration is scoped to `pull_request:write`. It cannot push directly to any branch.
 
 ---
 
@@ -460,36 +480,48 @@ flowchart TD
 ```
 nexusops-2.0/
 ├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── v1/
-│   │   │   │   ├── incidents.py
-│   │   │   │   ├── memory.py
-│   │   │   │   └── webhooks.py
-│   │   │   └── deps.py
-│   │   ├── core/
-│   │   │   ├── config.py
-│   │   │   ├── security.py
-│   │   │   └── logging.py
-│   │   ├── models/
-│   │   │   ├── incident.py
-│   │   │   └── memory_chunk.py
+│   ├── src/
+│   │   ├── routers/
+│   │   │   ├── auth.router.ts
+│   │   │   ├── webhooks.router.ts
+│   │   │   ├── memory/
+│   │   │   │   ├── ingest.router.ts
+│   │   │   │   └── query.router.ts
+│   │   │   └── autofix/
+│   │   │       ├── incidents.router.ts
+│   │   │       └── fixes.router.ts
 │   │   ├── services/
-│   │   │   ├── memory_engine.py    # pgvector similarity search
-│   │   │   ├── sanitizer.py        # PII stripping
-│   │   │   ├── groq_client.py      # LLM inference
-│   │   │   ├── github_client.py    # Draft PR creation
-│   │   │   └── telegram_client.py  # Notifications
-│   │   ├── worker/
-│   │   │   ├── celery_app.py
-│   │   │   └── tasks/
-│   │   │       ├── process_incident.py
-│   │   │       └── ingest_memory.py
-│   │   └── main.py
-│   ├── alembic/
+│   │   │   ├── memory/
+│   │   │   │   ├── rag.service.ts          # createRetrievalChain (LangChain)
+│   │   │   │   ├── chunking.service.ts     # RecursiveCharacterTextSplitter
+│   │   │   │   └── embedding.service.ts    # OpenAIEmbeddings + PGVectorStore
+│   │   │   ├── autofix/
+│   │   │   │   ├── analysis.service.ts     # analysisChain (LCEL)
+│   │   │   │   ├── fixGeneration.service.ts # fixGenerationChain (LCEL)
+│   │   │   │   ├── sanitization.service.ts
+│   │   │   │   └── pr.service.ts           # Octokit Draft PR
+│   │   │   └── nexus/
+│   │   │       ├── memoryEnrichment.service.ts  # PGVectorStore similarity
+│   │   │       └── notification.service.ts      # Telegraf alerts
+│   │   ├── workers/
+│   │   │   ├── queue.ts                    # BullMQ setup + repeatable jobs
+│   │   │   ├── autofix.worker.ts           # Fix pipeline BullMQ worker
+│   │   │   └── memory.worker.ts            # Ingestion BullMQ worker
+│   │   ├── integrations/
+│   │   │   ├── telegramBot.ts              # Telegraf v4 bot
+│   │   │   ├── githubClient.ts             # @octokit/rest wrapper
+│   │   │   └── anthropicClient.ts          # ChatAnthropic LangChain wrapper
+│   │   ├── middleware/
+│   │   │   ├── auth.middleware.ts
+│   │   │   └── error.middleware.ts
+│   │   └── index.ts                        # Express app entry
+│   ├── prisma/
+│   │   ├── schema.prisma                   # Prisma schema + pgvector
+│   │   └── migrations/
 │   ├── tests/
 │   ├── .env.example
-│   └── requirements.txt
+│   ├── package.json
+│   └── tsconfig.json
 │
 ├── frontend/
 │   ├── src/
@@ -499,7 +531,7 @@ nexusops-2.0/
 │   │   │   │   └── memory/
 │   │   │   └── layout.tsx
 │   │   ├── components/
-│   │   │   ├── ui/                 # Shadcn base components
+│   │   │   ├── ui/                         # Shadcn base components
 │   │   │   ├── incident-card.tsx
 │   │   │   ├── memory-panel.tsx
 │   │   │   └── confidence-badge.tsx
@@ -507,7 +539,7 @@ nexusops-2.0/
 │   │   │   ├── api.ts
 │   │   │   └── utils.ts
 │   │   └── store/
-│   │       └── incidents.ts        # Zustand store
+│   │       └── incidents.ts                # Zustand store
 │   ├── .env.local.example
 │   └── package.json
 │
@@ -523,18 +555,19 @@ nexusops-2.0/
 ## 🗺️ Roadmap
 
 - [x] Sentry webhook ingestion
-- [x] pgvector memory enrichment
-- [x] Groq LLaMA 3.3 inference
-- [x] GitHub Draft PR generation
-- [x] Telegram notifications
+- [x] LangChain.js RAG memory enrichment (PGVectorStore + pgvector)
+- [x] Claude Sonnet 4 inference via LangChain LCEL chains
+- [x] GitHub Draft PR generation (Octokit)
+- [x] Telegram notifications (Telegraf)
 - [x] Confidence scoring (SAFE / REVIEW / BLOCKED)
+- [x] BullMQ async pipeline with repeatable scheduled jobs
 - [ ] Slack ingestion adapter
 - [ ] OpenTelemetry trace integration
 - [ ] Multi-repository support
 - [ ] RBAC for team-level access control
 - [ ] Memory decay and re-ranking policies
 - [ ] Exportable incident post-mortems (PDF)
-- [ ] Self-hosted LLM option via Ollama
+- [ ] Self-hosted LLM option via Ollama + LangChain
 
 ---
 
@@ -558,14 +591,14 @@ This project follows [Conventional Commits](https://www.conventionalcommits.org/
 feat: add slack ingestion adapter
 fix: resolve race condition in memory engine query
 docs: update API reference for /incidents endpoint
-chore: bump groq-sdk to 0.9.0
+chore: bump @langchain/anthropic to 0.4.0
 ```
 
 **3. Before opening a PR**
 
 ```bash
 # Backend
-cd backend && pytest --cov=app tests/
+cd backend && npm run test && npm run type-check
 
 # Frontend
 cd frontend && npm run lint && npm run type-check

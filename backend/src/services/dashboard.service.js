@@ -26,7 +26,7 @@ async function getStats(workspaceId) {
     prisma.queryHistory.count({ where: { workspace_id: workspaceId } }),
     prisma.errorRateSnapshot.findFirst({
       where: { workspace_id: workspaceId },
-      orderBy: { captured_at: 'desc' },
+      orderBy: { recorded_at: 'desc' },
     }),
   ]);
 
@@ -35,7 +35,7 @@ async function getStats(workspaceId) {
     fixes: { total: totalFixes, safe: safeFixes },
     memory: { sources: totalSources, chunks: totalChunks, queries: totalQueries },
     tasks: { total: totalTasks, pending: pendingTasks },
-    error_rate: recentErrorRate?.error_rate ?? null,
+    error_rate: recentErrorRate?.rate ?? null,
   };
 }
 

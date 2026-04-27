@@ -169,3 +169,22 @@ exports.reviewFix = async (req, res) => {
 
   res.json({ fix, pr });
 };
+
+exports.triggerRevert = async (req, res) => {
+  const revertService = require('../services/revert.service');
+  const input = z.object({
+    incident_id: z.string().uuid().optional(),
+    reason: z.string().optional(),
+    platform: z.string().optional(),
+    deploy_id: z.string().optional(),
+  }).parse(req.body || {});
+
+  const result = await revertService.triggerRevert(req.workspace_id, input);
+  res.json(result);
+};
+
+exports.getRevertHistory = async (req, res) => {
+  const revertService = require('../services/revert.service');
+  const history = await revertService.getRevertHistory(req.workspace_id);
+  res.json(history);
+};

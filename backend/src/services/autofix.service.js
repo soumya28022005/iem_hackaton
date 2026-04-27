@@ -120,13 +120,25 @@ async function buildMemoryContext(incident, analysis) {
   }
 
   const matches = await similaritySearch(incident.workspace_id, query, 3).catch(() => []);
+  const contextText = matches.map((m, i) => `[Discussion ${i + 1}]: ${m.text}`).join('\n\n');
+  
+  let insight = 'No related team discussions found in memory.';
+  if (matches.length > 0) {
+    const summary = await invokeJson(`
+      Summarize how these team discussions relate to the current incident: {error}.
+      Return ONLY a JSON object: {{"summary": "1-2 sentence summary"}}
+      
+      Discussions:
+      {context}
+    `, { error: incident.error_message, context: contextText }, { summary: `Found ${matches.length} related discussions.` });
+    insight = summary.summary;
+  }
+
   return {
-    related_discussions: matches.map((match) => match.text.slice(0, 300)),
+    related_discussions: matches.map((match) => match.text.slice(0, 500)),
     query,
     matches_found: matches.length,
-    insight: matches.length
-      ? `Found ${matches.length} related team memory item(s) for this incident.`
-      : 'No related team discussions found in memory.',
+    insight,
   };
 }
 

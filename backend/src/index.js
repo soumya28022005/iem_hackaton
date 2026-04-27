@@ -12,6 +12,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const webhookRoutes = require('./routes/webhooks');
 const { errorMiddleware } = require('./middleware/error');
 const { startWorkers } = require('./workers/queue');
+const { startBot } = require('./bot');
 
 const app = express();
 const corsOrigin = config.CORS_ORIGIN === '*' ? true : config.CORS_ORIGIN.split(',').map((origin) => origin.trim());
@@ -106,6 +107,10 @@ if (require.main === module) {
     startWorkers().catch((err) => {
       console.warn('Worker startup error:', err.message);
     });
+  }
+
+  if (process.env.START_BOT !== 'false') {
+    startBot();
   }
 }
 

@@ -11,6 +11,7 @@ const { prisma } = require('../lib/prisma');
 const { config } = require('../lib/config');
 const { AppError } = require('../lib/http');
 const { embedDocuments, insertChunkWithEmbedding, similaritySearch } = require('./vector.service');
+const storageService = require('./storage.service');
 
 const splitter = new RecursiveCharacterTextSplitter({
   chunkSize: 1000,
@@ -80,7 +81,7 @@ async function extractTextFromFile(file) {
   return buffer.toString('utf8');
 }
 
-async function createSource({ workspaceId, name, sourceType = 'document', metadata = {}, content }) {
+async function createSource({ workspaceId, name, sourceType = 'document', metadata = {}, content, fileUrl }) {
   return prisma.source.create({
     data: {
       workspace_id: workspaceId,
@@ -88,6 +89,7 @@ async function createSource({ workspaceId, name, sourceType = 'document', metada
       source_type: sourceType,
       status: content ? 'processing' : 'pending',
       metadata,
+      file_url: fileUrl || null,
     },
   });
 }
@@ -146,10 +148,10 @@ Text:
   return saved.filter(Boolean);
 }
 
-async function ingestText({ workspaceId, name, sourceType = 'document', text, metadata = {}, detectTasks = false }) {
+async function ingestText({ workspaceId, name, sourceType = 'document', text, metadata = {}, detectTasks = false, fileUrl }) {
   if (!text || !text.trim()) throw new AppError(400, 'No text content found to ingest');
 
-  const source = await createSource({ workspaceId, name, sourceType, metadata, content: text });
+  const source = await createSource({ workspaceId, name, sourceType, metadata, content: text, fileUrl });
 
   try {
     const docs = await splitter.createDocuments([text], [{
@@ -194,15 +196,29 @@ async function ingestFile({ workspaceId, file, metadata = {} }) {
   const fileName = (file.originalname || '').toLowerCase();
   const inferredType = fileName.endsWith('.md') || fileName.endsWith('.markdown') ? 'markdown' : 'document';
   const sourceType = audioFile ? 'voice' : (metadata.source_type || metadata.sourceType || inferredType);
+  
   const text = await extractTextFromFile(file);
-  return ingestText({
+  const fileUrl = await storageService.uploadFile(file, sourceType).catch((err) => {
+    console.warn('Storage upload failed, continuing with text only:', err.message);
+    return null;
+  });
+
+  const result = await ingestText({
     workspaceId,
     name: file.originalname,
     sourceType,
     text,
+    fileUrl,
     metadata: { ...metadata, original_name: file.originalname, mimetype: file.mimetype, size: file.size },
     detectTasks: metadata.detect_tasks !== false && metadata.detectTasks !== false,
   });
+
+  // Clean up local file after successful ingestion
+  if (file.path) {
+    fs.unlink(file.path).catch(() => null);
+  }
+
+  return result;
 }
 
 async function ingestIncidentMemory({ workspaceId, incidentId, analysis, fix, memoryContext }) {

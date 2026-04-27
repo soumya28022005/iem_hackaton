@@ -144,3 +144,9 @@ exports.getProblems = async (req, res) => {
   });
   res.json(problems);
 };
+
+exports.detectProblems = async (req, res) => {
+  const problemService = require('../services/problem.service');
+  const problems = await problemService.detectRecurringProblems(req.workspace_id);
+  res.json(problems);
+};
