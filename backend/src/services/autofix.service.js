@@ -272,7 +272,7 @@ async function processIncidentPipeline(incidentId) {
       },
     });
 
-    await setIncidentStatus(incidentId, safety.safety_score === 'BLOCKED' ? 'fix_blocked' : 'resolved');
+    await setIncidentStatus(incidentId, (safety.safety_score === 'BLOCKED' || safety.safety_score === 'REVIEW_REQUIRED') ? 'fix_blocked' : 'resolved');
 
     // Index fix + analysis back into memory for future incident correlation
     await ingestIncidentMemory({

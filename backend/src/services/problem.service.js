@@ -46,17 +46,40 @@ async function detectRecurringProblems(workspaceId) {
 
     const saved = [];
     for (const p of problems) {
-      const problem = await prisma.problem.create({
-        data: {
+      if (!p.title) continue;
+
+      const existingProblem = await prisma.problem.findFirst({
+        where: {
           workspace_id: workspaceId,
-          title: p.title,
-          description: p.description,
-          severity: p.severity || 'medium',
-          status: 'open',
-          related_chunk_ids: p.relevance_ids || [],
+          title: { equals: p.title, mode: 'insensitive' },
         },
       });
-      saved.push(problem);
+
+      if (existingProblem) {
+        const updated = await prisma.problem.update({
+          where: { id: existingProblem.id },
+          data: {
+            frequency: existingProblem.frequency + 1,
+            last_seen: new Date(),
+            description: p.description || existingProblem.description,
+            severity: p.severity || existingProblem.severity,
+            related_chunk_ids: Array.from(new Set([...existingProblem.related_chunk_ids, ...(p.relevance_ids || [])])),
+          },
+        });
+        saved.push(updated);
+      } else {
+        const problem = await prisma.problem.create({
+          data: {
+            workspace_id: workspaceId,
+            title: p.title,
+            description: p.description,
+            severity: p.severity || 'medium',
+            status: 'open',
+            related_chunk_ids: p.relevance_ids || [],
+          },
+        });
+        saved.push(problem);
+      }
     }
     return saved;
   } catch (error) {

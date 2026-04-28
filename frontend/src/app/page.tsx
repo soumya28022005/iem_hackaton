@@ -142,9 +142,7 @@ export default function LandingPage() {
     restDelta: 0.001,
   });
 
-  const yBg = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
   const yHeroText = useTransform(scrollYProgress, [0, 1], ["0%", "20%"]);
-  const opacityShader = useTransform(scrollYProgress, [0, 0.5], [1, 0.2]);
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden selection:bg-primary-red selection:text-white">

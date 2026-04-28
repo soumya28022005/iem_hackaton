@@ -58,7 +58,17 @@ async function transcribeAudio(filePath, originalName) {
 }
 
 async function extractTextFromFile(file) {
-  const buffer = await fs.readFile(file.path);
+  let buffer = file.buffer;
+  let tempFilePath = null;
+
+  if (!buffer && file.path) {
+    buffer = await fs.readFile(file.path);
+  }
+
+  if (!buffer) {
+    throw new AppError(400, 'No file content available');
+  }
+
   const name = (file.originalname || '').toLowerCase();
 
   if (file.mimetype === 'application/pdf' || name.endsWith('.pdf')) {
@@ -75,7 +85,24 @@ async function extractTextFromFile(file) {
   }
 
   if (isAudioFile(file)) {
-    return transcribeAudio(file.path, file.originalname);
+    let audioPath = file.path;
+    if (!audioPath && file.buffer) {
+      const tempDir = path.join(process.cwd(), 'uploads', 'temp');
+      await fs.mkdir(tempDir, { recursive: true });
+      const ext = path.extname(file.originalname || '.mp3').toLowerCase() || '.mp3';
+      tempFilePath = path.join(tempDir, `temp-${Date.now()}${ext}`);
+      await fs.writeFile(tempFilePath, file.buffer);
+      audioPath = tempFilePath;
+    }
+
+    try {
+      const text = await transcribeAudio(audioPath, file.originalname);
+      return text;
+    } finally {
+      if (tempFilePath) {
+        await fs.unlink(tempFilePath).catch(() => null);
+      }
+    }
   }
 
   return buffer.toString('utf8');
