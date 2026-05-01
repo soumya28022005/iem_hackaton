@@ -12,6 +12,7 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  RotateCcw,
 } from "lucide-react";
 import { ActivityItem } from "@/lib/types";
 import { formatRelativeTime, cn } from "@/lib/utils";
@@ -54,6 +55,7 @@ const typeIcons: Record<string, React.ElementType> = {
   fix_approved: CheckCircle,
   fix_rejected: XCircle,
   fix_needs_changes: Clock,
+  revert_triggered: RotateCcw,
 };
 
 interface ActivityFeedProps {

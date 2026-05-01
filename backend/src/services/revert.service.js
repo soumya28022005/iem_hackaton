@@ -23,6 +23,17 @@ async function triggerRevert(workspaceId, { incidentId, reason, platform, deploy
     },
   });
 
+  await prisma.activityLog.create({
+    data: {
+      workspace_id: workspaceId,
+      module: 'autofix',
+      action: 'revert_triggered',
+      resource_type: 'deployment',
+      resource_id: deployId || event.id,
+      metadata: { reason, platform: selectedPlatform },
+    },
+  }).catch((err) => console.warn('Activity log failed for revert:', err.message));
+
   try {
     if (selectedPlatform === 'vercel') {
       await rollbackVercel(workspace, deployId);

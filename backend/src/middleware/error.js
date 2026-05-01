@@ -15,7 +15,14 @@ function errorMiddleware(err, req, res, _next) {
   }
 
   if (statusCode >= 500) {
-    console.error(`[${req.method} ${req.originalUrl}]`, err);
+    console.error(`[${new Date().toISOString()}] ❌ ${req.method} ${req.originalUrl} failed:`, {
+      message: err.message,
+      stack: err.stack,
+      body: req.body,
+      params: req.params,
+      query: req.query,
+      user: req.user ? req.user.id : 'anonymous',
+    });
   }
 
   res.status(statusCode).json(payload);
