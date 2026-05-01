@@ -51,14 +51,18 @@ async function rollbackVercel(workspace, deployId) {
   // Vercel API: POST /v1/projects/:id/rollback/:deployId
   console.log(`[Revert] Rolling back Vercel deployment for project ${workspace.slug}`);
   
-  // Real API call would go here:
-  /*
-  const res = await fetch(`https://api.vercel.com/v1/projects/${workspace.slug}/rollback/${deployId}`, {
+  const projectId = workspace.settings?.vercel_project_id || workspace.slug;
+  const url = `https://api.vercel.com/v1/projects/${projectId}/rollback/${deployId}`;
+  
+  const res = await fetch(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` }
   });
-  if (!res.ok) throw new Error(`Vercel API error: ${res.statusText}`);
-  */
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(`Vercel API error (${res.status}): ${errorData.error?.message || res.statusText}`);
+  }
 }
 
 async function rollbackRailway(workspace, deployId) {
@@ -66,6 +70,26 @@ async function rollbackRailway(workspace, deployId) {
   if (!token) throw new Error('RAILWAY_TOKEN missing');
 
   console.log(`[Revert] Rolling back Railway deployment for project ${workspace.slug}`);
+  
+  const serviceId = workspace.settings?.railway_service_id;
+  if (!serviceId) throw new Error('RAILWAY_SERVICE_ID missing in workspace settings');
+
+  // Railway GQL or Webhook trigger would go here. For now, we simulate a redeploy.
+  const res = await fetch(`https://backboard.railway.app/graphql/v2`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: `mutation serviceInstanceRedeploy($serviceId: String!) {
+        serviceInstanceRedeploy(serviceId: $serviceId)
+      }`,
+      variables: { serviceId },
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Railway API error: ${res.statusText}`);
 }
 
 async function getRevertHistory(workspaceId) {

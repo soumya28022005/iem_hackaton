@@ -8,9 +8,9 @@ import { IncidentCard } from "@/components/autofix/IncidentCard";
 import { mockDashboardStats, mockActivityFeed } from "@/lib/mock-data";
 import { Search, ArrowRight, Zap, Brain, Shield, TrendingUp } from "lucide-react";
 import Link from "next/link";
-import { autofixApi } from "@/lib/api";
+import { autofixApi, dashboardApi } from "@/lib/api";
 import { useWorkspaceStore } from "@/store/workspaceStore";
-import type { Incident } from "@/lib/types";
+import type { Incident, DashboardStats, ActivityItem } from "@/lib/types";
 
 const systemStatus = [
   { label: "Memory Engine", icon: Brain, color: "memory", pulse: true },
@@ -20,6 +20,8 @@ const systemStatus = [
 
 export default function DashboardPage() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const { currentWorkspace, isLoading: workspaceLoading } = useWorkspaceStore();
 
@@ -31,8 +33,21 @@ export default function DashboardPage() {
     }
     const loadData = async () => {
       try {
-        const data = await autofixApi.listIncidents(currentWorkspace.id);
-        setIncidents(data);
+        const [incidentsData, statsData, activityData] = await Promise.all([
+          autofixApi.listIncidents(currentWorkspace.id),
+          dashboardApi.getStats(currentWorkspace.id),
+          dashboardApi.getTimeline(currentWorkspace.id, 20),
+        ]);
+        setIncidents(incidentsData);
+        setStats(statsData);
+        setActivity(activityData.map((log: any) => ({
+          id: log.id,
+          module: log.module as any,
+          type: log.action as any,
+          title: log.action.replace(/_/g, ' '),
+          description: `Action performed on ${log.resource_type || 'system'}`,
+          timestamp: log.created_at
+        })));
       } catch (err) {
         console.warn("Dashboard data load failed (backend may be offline):", err);
       } finally {
@@ -99,7 +114,7 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* ── Stats Grid ──────────────────────────────────────────────── */}
-      <UnifiedStats stats={mockDashboardStats} />
+      <UnifiedStats stats={stats || mockDashboardStats} />
 
       {/* ── Main Content: 5-col grid ────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
@@ -117,7 +132,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="p-3 max-h-[520px] overflow-y-auto">
-              <ActivityFeed items={mockActivityFeed} />
+              <ActivityFeed items={activity.length > 0 ? activity : mockActivityFeed} />
             </div>
           </div>
         </div>

@@ -174,6 +174,22 @@ export const autofixApi = {
 };
 
 
+export const dashboardApi = {
+  getStats: async (workspaceId: string) => {
+    const res = await api.get("/dashboard/stats", { params: { workspace_id: workspaceId } });
+    return res.data;
+  },
+  getTimeline: async (workspaceId: string, limit?: number) => {
+    const res = await api.get("/dashboard/timeline", { params: { workspace_id: workspaceId, limit } });
+    return res.data;
+  },
+  getIncidentSeries: async (workspaceId: string, days?: number) => {
+    const res = await api.get("/dashboard/incidents/series", { params: { workspace_id: workspaceId, days } });
+    return res.data;
+  },
+};
+
+
 export const authApi = {
   register: async (email: string, name: string, password: string) => {
     const res = await api.post("/auth/register", { email, name, password });

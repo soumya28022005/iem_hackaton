@@ -5,7 +5,9 @@ const { processIncidentPipeline } = require('../services/autofix.service');
 
 let redis;
 let autofixQueue;
+let maintenanceQueue;
 let autofixWorker;
+let maintenanceWorker;
 let redisAvailable = false;
 let redisChecked = false;
 
@@ -56,6 +58,13 @@ function getRedis() {
     });
   }
   return redis;
+}
+
+function getMaintenanceQueue() {
+  if (!maintenanceQueue && redisAvailable) {
+    maintenanceQueue = new Queue('maintenance', { connection: getRedis() });
+  }
+  return maintenanceQueue;
 }
 
 function getAutofixQueue() {
@@ -112,11 +121,37 @@ async function startWorkers() {
     });
 
     console.log('✅ BullMQ AutoFix worker started (Redis connected)');
+
+    maintenanceWorker = new Worker(
+      'maintenance',
+      async (job) => {
+        if (job.name === 'detect_problems') {
+          const { prisma } = require('../lib/prisma');
+          const workspaces = await prisma.workspace.findMany({ select: { id: true } });
+          const { detectRecurringProblems } = require('../services/problem.service');
+          for (const ws of workspaces) {
+            await detectRecurringProblems(ws.id).catch(err => 
+              console.error(`Maintenance: Problem detection failed for ${ws.id}:`, err.message)
+            );
+          }
+        }
+      },
+      { connection: getRedis(), concurrency: 1 },
+    );
+
+    // Setup repeatable jobs
+    const mQueue = getMaintenanceQueue();
+    if (mQueue) {
+      await mQueue.add('detect_problems', {}, {
+        repeat: { pattern: '0 */6 * * *' } // Every 6 hours
+      });
+      console.log('✅ BullMQ Maintenance worker started (Repeatable jobs scheduled)');
+    }
   } catch (error) {
     console.warn(`BullMQ worker disabled: ${error.message}`);
   }
 
-  return { autofixWorker };
+  return { autofixWorker, maintenanceWorker };
 }
 
 module.exports = {

@@ -14,8 +14,8 @@ router.use(verifyAuth);
 
 router.get('/ingest/', requireWorkspaceAccess, asyncHandler(memoryController.getSources));
 router.post('/ingest/document', requireWorkspaceAccess, asyncHandler(memoryController.ingestDocument));
-router.post('/ingest/audio', upload.single('file'), asyncHandler(memoryController.ingestAudio));
-router.post('/ingest', upload.single('file'), asyncHandler(memoryController.ingestFile));
+router.post('/ingest/audio', requireWorkspaceAccess, upload.single('file'), asyncHandler(memoryController.ingestAudio));
+router.post('/ingest', requireWorkspaceAccess, upload.single('file'), asyncHandler(memoryController.ingestFile));
 
 router.get('/query/', requireWorkspaceAccess, asyncHandler(memoryController.query));
 router.post('/query', requireWorkspaceAccess, asyncHandler(memoryController.query));

@@ -205,6 +205,17 @@ async function ingestText({ workspaceId, name, sourceType = 'document', text, me
       await detectAndSaveTasks(workspaceId, source.id, docs).catch(() => null);
     }
 
+    await prisma.activityLog.create({
+      data: {
+        workspace_id: workspaceId,
+        module: 'memory',
+        action: 'source_ingested',
+        resource_type: sourceType,
+        resource_id: source.id,
+        metadata: { name, chunks: docs.length },
+      },
+    }).catch(() => null);
+
     return prisma.source.update({
       where: { id: source.id },
       data: { status: 'processed', processed_at: new Date() },
@@ -306,32 +317,52 @@ Question: {question}
 
 async function queryMemory({ workspaceId, question, userId }) {
   const startedAt = Date.now();
-  const chunks = await similaritySearch(workspaceId, question, 8);
-  const filtered = chunks.filter((chunk) => !chunk.score || chunk.score >= 0.6).slice(0, 5);
-  const answer = await answerWithGroq(question, filtered);
+  try {
+    const chunks = await similaritySearch(workspaceId, question, 8);
+    const filtered = chunks.filter((chunk) => !chunk.score || chunk.score >= 0.6).slice(0, 5);
+    const answer = await answerWithGroq(question, filtered);
 
-  const sources = filtered.slice(0, 3).map((chunk) => ({
-    id: chunk.id,
-    source_id: chunk.source_id,
-    content: chunk.text,
-    text: chunk.text,
-    metadata: chunk.metadata || {},
-    score: chunk.score,
-  }));
+    const sources = filtered.slice(0, 3).map((chunk) => ({
+      id: chunk.id,
+      source_id: chunk.source_id,
+      content: chunk.text,
+      text: chunk.text,
+      metadata: chunk.metadata || {},
+      score: chunk.score,
+    }));
 
-  await prisma.queryHistory.create({
-    data: {
-      workspace_id: workspaceId,
-      user_id: userId || null,
-      question,
-      answer,
-      sources,
-      latency_ms: Date.now() - startedAt,
-      model_used: config.GROQ_MODEL,
-    },
-  }).catch(() => null);
+    await Promise.all([
+      prisma.queryHistory.create({
+        data: {
+          workspace_id: workspaceId,
+          user_id: userId || null,
+          question,
+          answer,
+          sources,
+          latency_ms: Date.now() - startedAt,
+          model_used: config.GROQ_MODEL,
+        },
+      }),
+      prisma.activityLog.create({
+        data: {
+          workspace_id: workspaceId,
+          user_id: userId || null,
+          module: 'memory',
+          action: 'memory_query',
+          resource_type: 'query',
+          metadata: { question, answer_preview: answer.slice(0, 100), latency_ms: Date.now() - startedAt },
+        },
+      }),
+    ]).catch((err) => console.error('[Memory Service] History/Log creation failed:', err.message));
 
-  return { answer, sources };
+    return { answer, sources };
+  } catch (error) {
+    console.error('[Memory Service] queryMemory error:', error);
+    return {
+      answer: "I encountered an error while searching your team's memory. This might be due to a service outage or configuration issue. Please try again later.",
+      sources: [],
+    };
+  }
 }
 
 module.exports = {

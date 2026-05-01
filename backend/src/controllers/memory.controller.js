@@ -43,12 +43,8 @@ exports.ingestDocument = async (req, res) => {
 };
 
 exports.ingestFile = async (req, res) => {
-  const workspaceId = req.body.workspace_id || req.body.workspaceId || req.query.workspace_id;
+  const workspaceId = req.workspace_id;
   if (!workspaceId) throw new AppError(400, 'workspace_id is required');
-  
-  // We need to manually trigger workspace access check here because of how multer works
-  req.params.workspaceId = workspaceId;
-  await new Promise((resolve, reject) => requireWorkspaceAccess(req, res, (err) => (err ? reject(err) : resolve())));
 
   if (!req.file) throw new AppError(400, 'No file uploaded');
   const metadata = req.body.metadata ? JSON.parse(req.body.metadata) : {};
@@ -57,11 +53,8 @@ exports.ingestFile = async (req, res) => {
 };
 
 exports.ingestAudio = async (req, res) => {
-  const workspaceId = req.body.workspace_id || req.body.workspaceId || req.query.workspace_id;
+  const workspaceId = req.workspace_id;
   if (!workspaceId) throw new AppError(400, 'workspace_id is required');
-
-  req.params.workspaceId = workspaceId;
-  await new Promise((resolve, reject) => requireWorkspaceAccess(req, res, (err) => (err ? reject(err) : resolve())));
 
   if (!req.file) throw new AppError(400, 'No audio file uploaded');
   const metadata = req.body.metadata ? JSON.parse(req.body.metadata) : {};

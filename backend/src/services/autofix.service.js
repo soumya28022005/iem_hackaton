@@ -24,6 +24,12 @@ const DANGEROUS_PATTERNS = [
   /DROP\s+TABLE/i,
   /DELETE\s+FROM/i,
   /process\.env\s*=/,
+  /chmod\s+/,
+  /chown\s+/,
+  /mkfifo\s+/,
+  /shred\s+/,
+  /wget\s+/,
+  /curl\s+.*\s*\|\s*sh/,
 ];
 
 function sanitizeText(value) {

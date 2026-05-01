@@ -9,7 +9,9 @@ function getEmbeddings() {
   if (!isValidKey) return null;
   if (!embeddings) {
     embeddings = new OpenAIEmbeddings({
-      modelName: 'text-embedding-3-small',
+      modelName: config.OPENAI_BASE_URL?.includes('openrouter') 
+        ? 'openai/text-embedding-3-small' 
+        : 'text-embedding-3-small',
       openAIApiKey: config.OPENAI_API_KEY,
       configuration: {
         baseURL: config.OPENAI_BASE_URL,
@@ -26,13 +28,23 @@ function toVectorLiteral(values) {
 async function embedDocuments(texts) {
   const client = getEmbeddings();
   if (!client) return [];
-  return client.embedDocuments(texts);
+  try {
+    return await client.embedDocuments(texts);
+  } catch (error) {
+    console.error('[Vector Service] embedDocuments error:', error.message);
+    return [];
+  }
 }
 
 async function embedQuery(text) {
   const client = getEmbeddings();
   if (!client) return null;
-  return client.embedQuery(text);
+  try {
+    return await client.embedQuery(text);
+  } catch (error) {
+    console.error('[Vector Service] embedQuery error:', error.message);
+    return null;
+  }
 }
 
 async function insertChunkWithEmbedding({ workspaceId, sourceId, chunkIndex, text, embedding, metadata }) {

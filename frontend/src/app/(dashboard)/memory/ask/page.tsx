@@ -8,6 +8,8 @@ import { Brain, Sparkles } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils";
 import { memoryApi, workspaceApi } from "@/lib/api";
 
+import { useWorkspaceStore } from "@/store/workspaceStore";
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -20,17 +22,8 @@ interface ChatMessage {
 export default function MemoryAskPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-
-  useEffect(() => {
-    workspaceApi.list()
-      .then(res => {
-        if (res.workspaces && res.workspaces.length > 0) {
-          setWorkspaceId(res.workspaces[0].id);
-        }
-      })
-      .catch(err => console.warn("Failed to load workspace:", err));
-  }, []);
+  const { currentWorkspace } = useWorkspaceStore();
+  const workspaceId = currentWorkspace?.id;
 
   const handleSubmit = (message: string) => {
     if (!workspaceId) return;

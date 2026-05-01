@@ -4,7 +4,9 @@ const { z } = require('zod');
 
 const envPath = path.resolve(__dirname, '../../.env');
 dotenv.config({ path: envPath });
-console.log(`[Config Debug] Loading .env from: ${envPath}`);
+if (process.env.DEBUG === 'true') {
+  console.log(`[Config Debug] Loading .env from: ${envPath}`);
+}
 
 const envSchema = z.object({
   NODE_ENV: z.string().default('development'),

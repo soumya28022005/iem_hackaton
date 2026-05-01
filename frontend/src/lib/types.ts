@@ -67,7 +67,11 @@ export interface DocumentChunk {
 export interface ActivityItem {
   id: string;
   module: ActiveModule;
-  type: "memory_query" | "incident_received" | "pr_created" | "task_detected" | "memory_enrichment";
+  type: 
+    | "memory_query" | "incident_received" | "pr_created" 
+    | "task_detected" | "memory_enrichment" | "source_ingested"
+    | "fix_generated" | "fix_approved" | "fix_rejected" | "fix_needs_changes"
+    | "incident_updated" | "pr_merged" | "deployment_failed";
   title: string;
   description: string;
   timestamp: string;

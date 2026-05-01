@@ -7,6 +7,11 @@ import {
   GitPullRequest,
   CheckSquare,
   Brain,
+  FilePlus,
+  Zap,
+  CheckCircle,
+  XCircle,
+  Clock,
 } from "lucide-react";
 import { ActivityItem } from "@/lib/types";
 import { formatRelativeTime, cn } from "@/lib/utils";
@@ -38,12 +43,17 @@ const moduleConfig = {
   },
 };
 
-const typeIcons: Record<ActivityItem["type"], React.ElementType> = {
+const typeIcons: Record<string, React.ElementType> = {
   memory_query: Search,
   incident_received: AlertCircle,
   pr_created: GitPullRequest,
   task_detected: CheckSquare,
   memory_enrichment: Brain,
+  source_ingested: FilePlus,
+  fix_generated: Zap,
+  fix_approved: CheckCircle,
+  fix_rejected: XCircle,
+  fix_needs_changes: Clock,
 };
 
 interface ActivityFeedProps {
@@ -58,8 +68,8 @@ export function ActivityFeed({ items }: ActivityFeedProps) {
 
       <div className="space-y-0.5">
         {items.map((item, index) => {
-          const config = moduleConfig[item.module];
-          const Icon = typeIcons[item.type];
+          const config = moduleConfig[item.module] || moduleConfig.nexus;
+          const Icon = typeIcons[item.type] || Zap;
           const isLast = index === items.length - 1;
 
           return (
