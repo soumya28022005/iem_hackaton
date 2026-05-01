@@ -121,7 +121,6 @@ export function UnifiedStats({ stats }: UnifiedStatsProps) {
             barColor="#8b5cf6"
             delay={0}
             icon={MessageSquare}
-            trend={12}
           />
           <StatCard
             label="Active Incidents"
@@ -136,7 +135,6 @@ export function UnifiedStats({ stats }: UnifiedStatsProps) {
             barColor="#8b5cf6"
             delay={0.1}
             icon={GitPullRequest}
-            trend={8}
           />
           <StatCard
             label="Memory Items"
@@ -144,7 +142,6 @@ export function UnifiedStats({ stats }: UnifiedStatsProps) {
             barColor="#8b5cf6"
             delay={0.15}
             icon={Database}
-            trend={3}
           />
         </div>
       </section>
@@ -163,7 +160,6 @@ export function UnifiedStats({ stats }: UnifiedStatsProps) {
             barColor="#22d3ee"
             delay={0.2}
             icon={FileText}
-            trend={21}
           />
           <StatCard
             label="Tasks Detected"
@@ -178,7 +174,6 @@ export function UnifiedStats({ stats }: UnifiedStatsProps) {
             barColor="#22d3ee"
             delay={0.3}
             icon={Lightbulb}
-            trend={5}
           />
           <StatCard
             label="Avg Answer Time"
@@ -186,7 +181,6 @@ export function UnifiedStats({ stats }: UnifiedStatsProps) {
             barColor="#22d3ee"
             delay={0.35}
             icon={Clock}
-            trend={-14}
           />
         </div>
       </section>
@@ -212,7 +206,6 @@ export function UnifiedStats({ stats }: UnifiedStatsProps) {
             barColor="#f59e0b"
             delay={0.45}
             icon={Timer}
-            trend={-22}
           />
           <StatCard
             label="Auto Reverts"

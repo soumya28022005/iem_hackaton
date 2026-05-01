@@ -114,7 +114,26 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* ── Stats Grid ──────────────────────────────────────────────── */}
-      <UnifiedStats stats={stats || mockDashboardStats} />
+      <UnifiedStats stats={stats || {
+        nexus: {
+          queries_today: 0,
+          active_incidents: 0,
+          prs_created: 0,
+          memory_items: 0
+        },
+        memory: {
+          messages_indexed: 0,
+          tasks_detected: 0,
+          decisions_logged: 0,
+          avg_answer_time_ms: 0
+        },
+        autofix: {
+          total_incidents: 0,
+          avg_mttr_seconds: 0,
+          auto_reverts: 0,
+          safety_blocks: 0
+        }
+      }} />
 
       {/* ── Main Content: 5-col grid ────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
@@ -132,7 +151,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="p-3 max-h-[520px] overflow-y-auto">
-              <ActivityFeed items={activity.length > 0 ? activity : mockActivityFeed} />
+              <ActivityFeed items={activity} />
             </div>
           </div>
         </div>

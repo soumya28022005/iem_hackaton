@@ -12,10 +12,10 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-export const firebaseAuth = getAuth(app);
+const app = getApps().length > 0 ? getApp() : (process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? initializeApp(firebaseConfig) : null);
+export const firebaseAuth = app ? getAuth(app) : null;
 
 // Initialize Analytics only if supported (prevents errors during SSR)
-export const analytics = typeof window !== "undefined" ? isSupported().then(yes => yes ? getAnalytics(app) : null) : null;
+export const analytics = (typeof window !== "undefined" && app) ? isSupported().then(yes => yes ? getAnalytics(app!) : null) : null;
 
 export default app;

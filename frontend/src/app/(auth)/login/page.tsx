@@ -102,6 +102,10 @@ export default function AuthPage() {
     setError("");
 
     try {
+      if (!firebaseAuth) {
+        throw new Error("Authentication system is not initialized. Please check your configuration.");
+      }
+
       if (isLogin) {
         const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
         const idToken = await credential.user.getIdToken();
@@ -112,7 +116,7 @@ export default function AuthPage() {
           router.refresh();
         }
       } else {
-        const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+        const credential = await createUserWithEmailAndPassword(firebaseAuth!, email, password);
         if (name.trim()) {
           await updateProfile(credential.user, { displayName: name.trim() });
         }
@@ -145,6 +149,7 @@ export default function AuthPage() {
     setResetStatus("sending");
     setResetError("");
     try {
+      if (!firebaseAuth) throw new Error("Authentication system not initialized.");
       await sendPasswordResetEmail(firebaseAuth, resetEmail.trim());
       setResetStatus("sent");
     } catch (err: unknown) {

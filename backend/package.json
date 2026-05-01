@@ -20,7 +20,7 @@
     "@langchain/core": "^0.3.0",
     "@langchain/groq": "^0.1.2",
     "@langchain/openai": "^0.3.0",
-    "@octokit/rest": "^22.0.1",
+    "@octokit/rest": "^19.0.0",
     "@prisma/client": "^5.21.0",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.0.0",

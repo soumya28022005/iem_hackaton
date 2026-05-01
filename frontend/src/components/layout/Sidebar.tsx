@@ -102,7 +102,9 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
   const handleLogout = async () => {
     try {
       // Sign out of Firebase
-      await firebaseSignOut(firebaseAuth);
+      if (firebaseAuth) {
+        await firebaseSignOut(firebaseAuth);
+      }
     } catch (e) {
       console.error("Firebase sign-out error:", e);
     }
