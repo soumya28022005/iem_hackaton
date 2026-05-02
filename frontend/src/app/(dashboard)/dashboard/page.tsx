@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { UnifiedStats } from "@/components/dashboard/UnifiedStats";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { IncidentCard } from "@/components/autofix/IncidentCard";
-import { mockDashboardStats, mockActivityFeed } from "@/lib/mock-data";
+
 import { Search, ArrowRight, Zap, Brain, Shield, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { autofixApi, dashboardApi } from "@/lib/api";
@@ -40,10 +40,10 @@ export default function DashboardPage() {
         ]);
         setIncidents(incidentsData);
         setStats(statsData);
-        setActivity(activityData.map((log: any) => ({
+        setActivity(activityData.map((log: { id: string, module: string, action: string, resource_type?: string, created_at: string }) => ({
           id: log.id,
-          module: log.module as any,
-          type: log.action as any,
+          module: log.module as "autofix" | "memory" | "nexus",
+          type: log.action as "incident_created" | "pr_created" | "memory_indexed" | "insight_generated" | "webhook_received" | "status_changed",
           title: log.action.replace(/_/g, ' '),
           description: `Action performed on ${log.resource_type || 'system'}`,
           timestamp: log.created_at

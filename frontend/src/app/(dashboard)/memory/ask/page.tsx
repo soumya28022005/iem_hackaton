@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { ChatInput } from "@/components/memory/ChatInput";
 import { AnswerCard } from "@/components/memory/AnswerCard";
 import { Brain, Sparkles } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils";
-import { memoryApi, workspaceApi } from "@/lib/api";
+import { memoryApi } from "@/lib/api";
 
 import { useWorkspaceStore } from "@/store/workspaceStore";
 
