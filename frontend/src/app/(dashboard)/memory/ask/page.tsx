@@ -1,167 +1,221 @@
+
 "use client";
 
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { ChatInput } from "@/components/memory/ChatInput";
-import { AnswerCard } from "@/components/memory/AnswerCard";
-import { Brain, Sparkles } from "lucide-react";
-import { formatRelativeTime } from "@/lib/utils";
-import { memoryApi } from "@/lib/api";
+import { motion, AnimatePresence } from "framer-motion";
 
-import { useWorkspaceStore } from "@/store/workspaceStore";
+import { formatRelativeTime, cn } from "@/lib/utils";
+import {
+  ArrowUpCircle,
+  ArrowRightCircle,
+  ArrowDownCircle,
+  ExternalLink,
+  CheckSquare,
+  Info
+} from "lucide-react";
 
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  sources?: Array<Record<string, unknown>>;
-  confidence?: number;
-  timestamp?: string;
-}
+const priorityConfig = {
+  high: { icon: ArrowUpCircle, color: "text-sev-high", label: "High" },
+  medium: { icon: ArrowRightCircle, color: "text-sev-medium", label: "Medium" },
+  low: { icon: ArrowDownCircle, color: "text-sev-low", label: "Low" },
+};
 
-export default function MemoryAskPage() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isTyping, setIsTyping] = useState(false);
-  const { currentWorkspace } = useWorkspaceStore();
-  const workspaceId = currentWorkspace?.id;
+const statusConfig = {
+  detected: { color: "bg-autofix-primary/10 text-autofix-primary border-autofix-border", label: "Detected" },
+  confirmed: { color: "bg-memory-primary/10 text-memory-primary border-memory-border", label: "Confirmed" },
+  synced_to_jira: { color: "bg-nexus-primary/10 text-nexus-primary border-nexus-border", label: "Synced to Jira" },
+  dismissed: { color: "bg-status-neutral/10 text-status-neutral border-border-default", label: "Dismissed" },
+};
 
-  const handleSubmit = (message: string) => {
-    if (!workspaceId) return;
+import { useEffect, useState } from "react";
+import { memoryApi, workspaceApi, Task } from "@/lib/api";
 
-    const newUserMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      role: "user",
-      content: message,
-      timestamp: new Date().toISOString(),
+export default function MemoryTasksPage() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedInfo, setExpandedInfo] = useState<Record<string, boolean>>({});
+  const [progressMap, setProgressMap] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const { workspaces } = await workspaceApi.list();
+        if (workspaces && workspaces.length > 0) {
+          const data = await memoryApi.listTasks(workspaces[0].id);
+          setTasks(data);
+        }
+      } catch (err) {
+        console.error("Failed to load tasks:", err);
+      } finally {
+        setLoading(false);
+      }
     };
+    loadData();
+  }, []);
 
-    setMessages((prev) => [...prev, newUserMsg]);
-    setIsTyping(true);
-
-    memoryApi.query(workspaceId, message)
-      .then((res) => {
-        const aiResponse: ChatMessage = {
-          id: `msg-${Date.now() + 1}`,
-          role: "assistant",
-          content: res.answer,
-          sources: res.sources as unknown as Array<Record<string, unknown>>,
-          confidence: 0.9,
-          timestamp: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, aiResponse]);
-        setIsTyping(false);
-      })
-      .catch(() => {
-        const errorResponse: ChatMessage = {
-          id: `msg-${Date.now() + 1}`,
-          role: "assistant",
-          content: "I'm having trouble connecting to the memory service right now. Please make sure the backend is running.",
-          timestamp: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, errorResponse]);
-        setIsTyping(false);
-      });
+  const handleCompleteTask = (taskId: string) => {
+    setTimeout(() => {
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    }, 300);
   };
 
+  const toggleInfo = (taskId: string) => {
+    setExpandedInfo((prev) => ({ ...prev, [taskId]: !prev[taskId] }));
+  };
+
+  const handleProgressChange = (taskId: string, value: number) => {
+    setProgressMap((prev) => ({ ...prev, [taskId]: value }));
+  };
+
+  const getTaskParts = (task: Task) => {
+    const fullText = (task.source_preview || task.title || "").trim();
+    const lowerText = fullText.toLowerCase();
+    const idx = lowerText.indexOf("because");
+    
+    if (idx !== -1) {
+      return {
+        main: fullText.substring(0, idx).trim(),
+        reason: fullText.substring(idx).trim()
+      };
+    }
+    return {
+      main: task.title,
+      reason: task.description || task.source_preview || null
+    };
+  };
+
+  if (loading) return <div className="p-8 text-center text-text-muted text-sm animate-pulse">Loading Tasks...</div>;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-3.5rem)] -m-4 md:-m-6">
+    <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-border-faint shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-memory-primary" />
-          <h1 className="text-lg font-semibold gradient-text-memory">
-            Ask Your Team&apos;s Memory
-          </h1>
-        </div>
-        <p className="text-xs text-text-muted mt-1 ml-4">
-          Search through team decisions, discussions, and documented knowledge
+      <div>
+        <h1 className="text-2xl font-semibold text-text-primary tracking-tight">
+          Detected Tasks
+        </h1>
+        <p className="text-sm text-text-secondary mt-1">
+          Tasks automatically detected from team conversations
         </p>
       </div>
 
-      {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
-        <div className="max-w-3xl mx-auto space-y-6">
-          {messages.length === 0 && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="flex flex-col items-center justify-center py-20 text-center"
-            >
-              <div className="w-16 h-16 rounded-2xl bg-memory-muted border border-memory-border flex items-center justify-center mb-4">
-                <Brain className="w-8 h-8 text-memory-primary" />
-              </div>
-              <h2 className="text-lg font-medium text-text-primary mb-2">
-                What would you like to know?
-              </h2>
-              <p className="text-sm text-text-secondary max-w-md">
-                Ask questions about your team&apos;s past discussions, decisions, and documented knowledge. I&apos;ll search through all indexed sources.
-              </p>
-              <div className="flex flex-wrap gap-2 mt-6 justify-center">
-                {[
-                  "What was decided about the caching strategy?",
-                  "Who set up the CI/CD pipeline?",
-                  "What are the known issues with auth?",
-                ].map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    onClick={() => handleSubmit(suggestion)}
-                    className="px-3 py-1.5 rounded-lg bg-bg-elevated border border-border-faint text-xs text-text-secondary hover:border-memory-primary/50 hover:text-memory-primary transition-all"
-                  >
-                    <Sparkles className="w-3 h-3 inline mr-1.5 text-memory-primary/50" />
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={msg.role === "user" ? "flex justify-end" : "flex justify-start"}
-            >
-              {msg.role === "user" ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-bg-elevated rounded-xl px-4 py-3 max-w-[70%]"
-                >
-                  <p className="text-sm text-text-primary">{msg.content}</p>
-                  <p className="text-2xs text-text-muted mt-1.5 text-right font-mono">
-                    {msg.timestamp ? formatRelativeTime(msg.timestamp) : "just now"}
-                  </p>
-                </motion.div>
-              ) : (
-                <AnswerCard
-                  content={msg.content}
-                  sources={msg.sources}
-                  confidence={msg.confidence}
-                />
-              )}
-            </div>
-          ))}
-
-          {/* Typing indicator */}
-          {isTyping && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex items-center gap-2 px-4"
-            >
-              <div className="flex gap-1">
-                <div className="w-2 h-2 rounded-full bg-memory-primary animate-pulse-dot" style={{ animationDelay: "0ms" }} />
-                <div className="w-2 h-2 rounded-full bg-memory-primary animate-pulse-dot" style={{ animationDelay: "200ms" }} />
-                <div className="w-2 h-2 rounded-full bg-memory-primary animate-pulse-dot" style={{ animationDelay: "400ms" }} />
-              </div>
-              <span className="text-2xs text-memory-primary">Searching memory...</span>
-            </motion.div>
-          )}
+      {/* Task List */}
+      {tasks.length === 0 ? (
+        <div className="p-12 text-center border border-dashed border-border-default rounded-2xl">
+          <CheckSquare className="w-10 h-10 text-text-muted mx-auto mb-3" />
+          <p className="text-text-secondary font-medium">No tasks detected yet</p>
+          <p className="text-xs text-text-muted mt-1 max-w-sm mx-auto">
+            Tasks will appear here automatically as your team discusses action items in connected sources.
+          </p>
         </div>
-      </div>
+      ) : (
+      <div className="space-y-3">
+        <AnimatePresence>
+          {tasks.map((task, index) => {
+            const priority = priorityConfig[task.priority as keyof typeof priorityConfig] || priorityConfig.medium;
+            const PriorityIcon = priority.icon;
+            const status = statusConfig[task.status as keyof typeof statusConfig] || statusConfig.detected;
+            const { main, reason } = getTaskParts(task);
+            const progress = progressMap[task.id] || 0;
 
-      {/* Input */}
-      <ChatInput onSubmit={handleSubmit} disabled={isTyping} />
+            return (
+              <motion.div
+                key={task.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+                className="bg-bg-surface border border-border-faint rounded-xl p-5 hover:border-border-default transition-colors flex flex-col gap-4"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      className="mt-1 w-5 h-5 rounded border-gray-300 text-nexus-primary focus:ring-nexus-primary cursor-pointer shrink-0"
+                      onChange={() => handleCompleteTask(task.id)}
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-medium text-text-primary leading-tight">
+                          {main}
+                        </h3>
+                        {reason && (
+                          <button
+                            onClick={() => toggleInfo(task.id)}
+                            className="text-text-muted hover:text-nexus-primary transition-colors focus:outline-none"
+                            title="Show Reason"
+                          >
+                            <Info className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                      
+                      <AnimatePresence>
+                        {expandedInfo[task.id] && reason && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mt-2 text-xs text-text-secondary bg-bg-elevated p-3 rounded-lg border border-border-faint"
+                          >
+                            <p className="italic">{reason}</p>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <span
+                      className={cn(
+                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-2xs font-medium border shrink-0",
+                        status.color
+                      )}
+                    >
+                      {status.label}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <PriorityIcon className={cn("w-4 h-4", priority.color)} />
+                      <span className="text-2xs font-medium">{priority.label}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Progress Control */}
+                <div className="pl-8 flex items-center gap-4">
+                  <label className="text-xs text-text-secondary font-medium whitespace-nowrap">Progress: {progress}%</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={progress}
+                    onChange={(e) => handleProgressChange(task.id, parseInt(e.target.value))}
+                    className="w-full max-w-xs h-1.5 bg-border-default rounded-lg appearance-none cursor-pointer accent-nexus-primary"
+                  />
+                </div>
+
+                {/* Footer */}
+                <div className="pl-8 flex items-center justify-between text-2xs text-text-muted">
+                  <div className="flex items-center gap-3">
+                    {task.assignee_hint && (
+                      <span>Assignee: <span className="text-text-secondary">{task.assignee_hint}</span></span>
+                    )}
+                    <span className="font-mono">
+                      Detected {formatRelativeTime(task.detected_at)}
+                    </span>
+                  </div>
+                  {task.jira_ticket_key && (
+                    <span className="flex items-center gap-1 text-nexus-primary font-mono">
+                      <ExternalLink className="w-3 h-3" />
+                      {task.jira_ticket_key}
+                    </span>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+      </div>
+      )}
     </div>
   );
 }

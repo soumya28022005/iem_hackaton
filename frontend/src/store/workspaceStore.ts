@@ -38,29 +38,13 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
         currentWorkspace: workspaces[0] || get().currentWorkspace,
         isLoading: false,
       });
-    } catch (err: unknown) {
-      // Fallback to mock data if backend is unreachable
-      console.warn("Backend unreachable, using mock workspace data:", (err as Error).message);
-      const mockWorkspaces: Workspace[] = [
-        {
-          id: "ws-mock-1",
-          name: "NexusOps Engineering",
-          slug: "nexusops-eng",
-          owner_id: "mock-user",
-          telegram_chat_id: null,
-          default_branch: "main",
-          auto_revert_enabled: false,
-          notify_on_pr: true,
-          notify_on_revert: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ];
+    } catch (err: any) {
+      console.error("Backend fetch error:", err.message);
       set({
-        workspaces: mockWorkspaces,
-        currentWorkspace: mockWorkspaces[0],
+        workspaces: [],
+        currentWorkspace: null,
         isLoading: false,
-        error: null,
+        error: "Failed to connect to real backend",
       });
     }
   },
