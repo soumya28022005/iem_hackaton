@@ -13,6 +13,7 @@ const webhookRoutes = require('./routes/webhooks');
 const { errorMiddleware } = require('./middleware/error');
 const { startWorkers } = require('./workers/queue');
 const { startBot } = require('./bot');
+const { startSlackBot } = require('./slack_bot');
 
 const app = express();
 const corsOrigin = config.CORS_ORIGIN === '*' ? true : config.CORS_ORIGIN.split(',').map((origin) => origin.trim());
@@ -109,8 +110,10 @@ if (require.main === module) {
     });
   }
 
+
   if (process.env.START_BOT !== 'false') {
-    startBot();
+    startBot(); // Telegram bot
+    startSlackBot(); // Slack bot
   }
 }
 
