@@ -20,6 +20,9 @@ router.post('/ingest', requireWorkspaceAccess, upload.single('file'), asyncHandl
 router.get('/query/', requireWorkspaceAccess, asyncHandler(memoryController.query));
 router.post('/query', requireWorkspaceAccess, asyncHandler(memoryController.query));
 
+// Slack messages stored in memory (for Ask page inbox)
+router.get('/messages/', requireWorkspaceAccess, asyncHandler(memoryController.getMessages));
+
 router.get('/tasks/', requireWorkspaceAccess, asyncHandler(memoryController.getTasks));
 router.patch('/tasks/:id', asyncHandler(memoryController.updateTask));
 router.post('/tasks/:id/jira', asyncHandler(memoryController.syncTaskToJira));

@@ -2,14 +2,10 @@ const { prisma } = require('../lib/prisma');
 const { ingestText } = require('./memory.service');
 
 async function findWorkspaceByChannelId(channelId) {
-  // Hackathon e quick run korar jonno amra first workspace ta niye nebo 
-  // jodi kono specific slack_channel_id link kora na thake.
-  let workspace = await prisma.workspace.findFirst();
-  return workspace;
+  return prisma.workspace.findFirst();
 }
 
 async function handleSlackMessage({ message, client }) {
-  // Bot er nijer message gulo amra ignore korbo
   if (message.bot_id || message.subtype === 'bot_message') return { skipped: true };
 
   const text = message.text;
@@ -18,27 +14,41 @@ async function handleSlackMessage({ message, client }) {
   const workspace = await findWorkspaceByChannelId(message.channel);
   if (!workspace) return { skipped: true, reason: 'no workspace found' };
 
-  // Slack theke User er nam ber kora
-  let sender = 'unknown';
+  // Sender real name fetch kora
+  let sender = message.user || 'unknown';
   try {
     const userInfo = await client.users.info({ user: message.user });
-    sender = userInfo.user.real_name || userInfo.user.name;
+    const u = userInfo.user;
+    sender = u.profile?.display_name_normalized
+      || u.profile?.display_name
+      || u.real_name
+      || u.name
+      || sender;
   } catch (error) {
-    console.error('[Slack Service] Error fetching user info', error.message);
+    console.error('[Slack Service] Error fetching user info:', error.message);
+  }
+
+  // Channel name fetch kora
+  let channelName = null;
+  try {
+    const channelInfo = await client.conversations.info({ channel: message.channel });
+    channelName = channelInfo.channel?.name || null;
+  } catch (error) {
+    console.error('[Slack Service] Error fetching channel info:', error.message);
   }
 
   const timestamp = new Date((message.ts || Date.now() / 1000) * 1000);
 
-  // memory.service.js er ingestText diye memory te save kora
   const source = await ingestText({
     workspaceId: workspace.id,
-    name: `Slack: ${message.channel} — ${timestamp.toISOString()}`,
+    name: `Slack: #${channelName || message.channel} — ${timestamp.toISOString()}`,
     sourceType: 'slack',
     text,
     metadata: {
       source_type: 'slack',
       sender,
       channel_id: message.channel,
+      channel_name: channelName,
       slack_message_id: message.ts,
       timestamp: timestamp.toISOString(),
     },

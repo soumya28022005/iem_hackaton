@@ -45,7 +45,6 @@ exports.ingestDocument = async (req, res) => {
 exports.ingestFile = async (req, res) => {
   const workspaceId = req.workspace_id;
   if (!workspaceId) throw new AppError(400, 'workspace_id is required');
-
   if (!req.file) throw new AppError(400, 'No file uploaded');
   const metadata = req.body.metadata ? JSON.parse(req.body.metadata) : {};
   const source = await memoryService.ingestFile({ workspaceId, file: req.file, metadata });
@@ -55,7 +54,6 @@ exports.ingestFile = async (req, res) => {
 exports.ingestAudio = async (req, res) => {
   const workspaceId = req.workspace_id;
   if (!workspaceId) throw new AppError(400, 'workspace_id is required');
-
   if (!req.file) throw new AppError(400, 'No audio file uploaded');
   const metadata = req.body.metadata ? JSON.parse(req.body.metadata) : {};
   const source = await memoryService.ingestFile({
@@ -69,13 +67,45 @@ exports.ingestAudio = async (req, res) => {
 exports.query = async (req, res) => {
   const question = req.body.query || req.body.question || req.query.query || req.query.question;
   if (!question) throw new AppError(400, 'query is required');
-  
   const result = await memoryService.queryMemory({
     workspaceId: req.workspace_id,
     question: String(question),
     userId: req.user.id,
   });
   res.json(result);
+};
+
+// Returns raw stored messages (Slack/Telegram chunks) for the Inbox UI
+exports.getMessages = async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 100, 200);
+  const offset = parseInt(req.query.offset) || 0;
+  const sourceType = req.query.source_type || null; // e.g. 'slack'
+
+  const where = {
+    workspace_id: req.workspace_id,
+    ...(sourceType ? { source_type: sourceType } : {}),
+  };
+
+  const chunks = await prisma.documentChunk.findMany({
+    where,
+    // nulls-last: rows with no timestamp go at the bottom
+    orderBy: [{ timestamp: 'desc' }, { created_at: 'desc' }],
+    take: limit,
+    skip: offset,
+    select: {
+      id: true,
+      text: true,
+      sender: true,
+      timestamp: true,
+      source_type: true,
+      channel_name: true,
+      metadata: true,
+      created_at: true,
+      source_id: true,
+    },
+  });
+
+  res.json(chunks);
 };
 
 exports.getTasks = async (req, res) => {
@@ -89,7 +119,7 @@ exports.getTasks = async (req, res) => {
 exports.updateTask = async (req, res) => {
   const task = await prisma.task.findUnique({ where: { id: req.params.id } });
   if (!task) throw new AppError(404, 'Task not found');
-  
+
   if (!(await prisma.workspaceMember.findUnique({
     where: { workspace_id_user_id: { workspace_id: task.workspace_id, user_id: req.user.id } },
   }))) {
@@ -125,7 +155,6 @@ exports.telegramWebhook = async (req, res) => {
   if (config.TELEGRAM_BOT_TOKEN && token && token !== config.TELEGRAM_BOT_TOKEN) {
     throw new AppError(401, 'Invalid Telegram webhook token');
   }
-
   const result = await telegramService.handleTelegramUpdate(req.body);
   res.json({ status: result.ingested ? 'ingested' : 'skipped', ...result });
 };

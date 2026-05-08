@@ -29,6 +29,18 @@ export interface Task {
   jira_ticket_key?: string;
 }
 
+export interface SlackMessage {
+  id: string;
+  text: string;
+  sender: string | null;
+  timestamp: string | null;
+  source_type: string | null;
+  channel_name: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  source_id: string;
+}
+
 export interface Problem {
   id: string;
   title: string;
@@ -99,6 +111,12 @@ export const workspaceApi = {
 };
 
 export const memoryApi = {
+  getMessages: async (workspaceId: string, sourceType?: string, limit = 50) => {
+    const params: Record<string, string | number> = { workspace_id: workspaceId, limit };
+    if (sourceType) params.source_type = sourceType;
+    const res = await api.get<SlackMessage[]>("/memory/messages/", { params });
+    return res.data;
+  },
   listTasks: async (workspaceId: string) => {
     const res = await api.get<Task[]>("/memory/tasks/", { params: { workspace_id: workspaceId } });
     return res.data;
