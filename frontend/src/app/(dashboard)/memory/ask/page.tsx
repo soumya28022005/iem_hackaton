@@ -35,7 +35,6 @@ function relTime(ts: string | null | undefined): string {
 }
 
 function getDisplayName(msg: SlackMessage): string {
-  // Try direct sender field first, then metadata
   const meta = msg.metadata as Record<string, string> | null;
   const raw = msg.sender || meta?.sender || "";
   if (!raw || raw === "unknown") return "Unknown";
@@ -65,13 +64,35 @@ function avatarColor(name: string): string {
   return colors[hash];
 }
 
+// ─── Chat turn type ───────────────────────────────────────────────────────────
+
+interface ChatTurn {
+  id: string;
+  question: string;
+  answer: { answer: string; sources: { text: string }[] } | null;
+}
+
 // ─── MessageBubble ───────────────────────────────────────────────────────────
 
-function MessageBubble({ msg, index }: { msg: SlackMessage; index: number }) {
+function MessageBubble({
+  msg,
+  index,
+  checked,
+  onCheck,
+}: {
+  msg: SlackMessage;
+  index: number;
+  checked: boolean;
+  onCheck: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
   const name = getDisplayName(msg);
   const channel = getChannelDisplay(msg);
   const ts = getTimestamp(msg);
   const initial = name.charAt(0).toUpperCase();
+
+  // First line only (up to first newline, or first 80 chars)
+  const firstLine = msg.text.split("\n")[0].slice(0, 80);
 
   return (
     <motion.div
@@ -80,6 +101,15 @@ function MessageBubble({ msg, index }: { msg: SlackMessage; index: number }) {
       transition={{ duration: 0.18, delay: Math.min(index * 0.025, 0.5) }}
       className="flex items-start gap-3 group py-1"
     >
+      {/* Checkbox */}
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={() => onCheck(msg.id)}
+        className="mt-1.5 w-3.5 h-3.5 shrink-0 cursor-pointer accent-purple-500"
+        aria-label={`Select message from ${name}`}
+      />
+
       {/* Avatar */}
       <div
         className={cn(
@@ -91,7 +121,6 @@ function MessageBubble({ msg, index }: { msg: SlackMessage; index: number }) {
       </div>
 
       <div className="flex-1 min-w-0">
-        {/* Header */}
         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
           <span className="text-xs font-semibold text-text-primary">{name}</span>
           <span className="flex items-center gap-0.5 text-2xs text-text-muted">
@@ -103,11 +132,46 @@ function MessageBubble({ msg, index }: { msg: SlackMessage; index: number }) {
           </span>
         </div>
 
-        {/* Text */}
-        <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap break-words">
-          {msg.text}
-        </p>
+        {/* Collapsed: first line only. Expanded: full message */}
+        <AnimatePresence initial={false}>
+          {expanded ? (
+            <motion.p
+              key="full"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap break-words overflow-hidden"
+            >
+              {msg.text}
+            </motion.p>
+          ) : (
+            <motion.p
+              key="preview"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-sm text-text-secondary leading-relaxed truncate"
+            >
+              {firstLine}
+            </motion.p>
+          )}
+        </AnimatePresence>
       </div>
+
+      {/* Circular "i" button — always present */}
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        title={expanded ? "Collapse" : "Show full message"}
+        className={cn(
+          "w-6 h-6 rounded-full border text-xs font-bold flex items-center justify-center shrink-0 mt-1 transition-colors select-none",
+          expanded
+            ? "bg-purple-600 border-purple-600 text-white"
+            : "border-border-faint text-text-muted hover:border-purple-500 hover:text-purple-400"
+        )}
+        aria-label={expanded ? "Collapse message" : "Show full message"}
+      >
+        i
+      </button>
     </motion.div>
   );
 }
@@ -152,6 +216,70 @@ function AiAnswer({
   );
 }
 
+// ─── ChatHistoryItem ─────────────────────────────────────────────────────────
+
+function ChatHistoryItem({
+  turn,
+  checked,
+  onCheck,
+}: {
+  turn: ChatTurn;
+  checked: boolean;
+  onCheck: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="space-y-2">
+      {/* Question row */}
+      <div className="flex items-start gap-2 group">
+        {/* Checkbox */}
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={() => onCheck(turn.id)}
+          className="mt-1 w-3.5 h-3.5 shrink-0 cursor-pointer accent-purple-500"
+          aria-label={`Select question: ${turn.question}`}
+        />
+
+        <div className="flex-1 rounded-lg bg-bg-elevated border border-border-faint px-3 py-2 text-sm text-text-primary">
+          {turn.question}
+        </div>
+
+        {/* Circular "i" button — shows/hides answer */}
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          title={expanded ? "Collapse answer" : "View answer"}
+          className={cn(
+            "w-6 h-6 rounded-full border text-xs font-bold flex items-center justify-center shrink-0 mt-1 transition-colors select-none",
+            expanded
+              ? "bg-purple-600 border-purple-600 text-white"
+              : "border-border-faint text-text-muted hover:border-purple-500 hover:text-purple-400"
+          )}
+          aria-label={expanded ? "Collapse" : "Show answer"}
+        >
+          i
+        </button>
+      </div>
+
+      {/* Answer: always behind "i" button */}
+      <AnimatePresence>
+        {expanded && turn.answer && (
+          <motion.div
+            key="answer"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="ml-5 overflow-hidden"
+          >
+            <AiAnswer answer={turn.answer.answer} sources={turn.answer.sources} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 type Tab = "inbox" | "ask";
@@ -162,21 +290,19 @@ export default function MemoryAskPage() {
 
   // Inbox
   const [messages, setMessages] = useState<SlackMessage[]>([]);
+  const [checkedMsgs, setCheckedMsgs] = useState<Set<string>>(new Set());
   const [msgLoading, setMsgLoading] = useState(true);
   const [msgError, setMsgError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   // Ask
   const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState<{
-    answer: string;
-    sources: { text: string }[];
-  } | null>(null);
+  const [chatHistory, setChatHistory] = useState<ChatTurn[]>([]);
   const [asking, setAsking] = useState(false);
+  const [checkedTurns, setCheckedTurns] = useState<Set<string>>(new Set());
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Load workspace
   useEffect(() => {
     workspaceApi
       .list()
@@ -186,7 +312,6 @@ export default function MemoryAskPage() {
       .catch(console.error);
   }, []);
 
-  // Load Slack messages
   const loadMessages = (wsId: string) => {
     setMsgLoading(true);
     setMsgError(null);
@@ -212,19 +337,79 @@ export default function MemoryAskPage() {
       getChannelDisplay(m).toLowerCase().includes(search.toLowerCase())
   );
 
+  // Inbox checkboxes
+  const toggleMsg = (id: string) =>
+    setCheckedMsgs((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const allMsgsChecked =
+    filtered.length > 0 && filtered.every((m) => checkedMsgs.has(m.id));
+
+  const toggleAllMsgs = () => {
+    if (allMsgsChecked) {
+      setCheckedMsgs((prev) => {
+        const next = new Set(prev);
+        filtered.forEach((m) => next.delete(m.id));
+        return next;
+      });
+    } else {
+      setCheckedMsgs((prev) => {
+        const next = new Set(prev);
+        filtered.forEach((m) => next.add(m.id));
+        return next;
+      });
+    }
+  };
+
+  // Chat turn checkboxes
+  const toggleTurn = (id: string) =>
+    setCheckedTurns((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const allTurnsChecked =
+    chatHistory.length > 0 && chatHistory.every((t) => checkedTurns.has(t.id));
+
+  const toggleAllTurns = () => {
+    if (allTurnsChecked) {
+      setCheckedTurns(new Set());
+    } else {
+      setCheckedTurns(new Set(chatHistory.map((t) => t.id)));
+    }
+  };
+
   async function handleAsk() {
     if (!question.trim() || !workspaceId || asking) return;
+    const q = question.trim();
     setAsking(true);
-    setAnswer(null);
+    setQuestion("");
+
+    const turnId = `turn-${Date.now()}`;
+    setChatHistory((prev) => [...prev, { id: turnId, question: q, answer: null }]);
+
     try {
-      const result = await memoryApi.query(workspaceId, question.trim());
-      setAnswer(result as { answer: string; sources: { text: string }[] });
+      const result = await memoryApi.query(workspaceId, q);
+      setChatHistory((prev) =>
+        prev.map((t) =>
+          t.id === turnId
+            ? { ...t, answer: result as { answer: string; sources: { text: string }[] } }
+            : t
+        )
+      );
     } catch (err) {
       console.error("Query failed:", err);
-      setAnswer({
-        answer: "Something went wrong. Please try again.",
-        sources: [],
-      });
+      setChatHistory((prev) =>
+        prev.map((t) =>
+          t.id === turnId
+            ? { ...t, answer: { answer: "Something went wrong. Please try again.", sources: [] } }
+            : t
+        )
+      );
     } finally {
       setAsking(false);
     }
@@ -260,7 +445,9 @@ export default function MemoryAskPage() {
             ) : (
               <MessageSquare className="w-3.5 h-3.5" />
             )}
-            {t === "inbox" ? `Inbox${messages.length ? ` (${messages.length})` : ""}` : "Ask AI"}
+            {t === "inbox"
+              ? `Inbox${messages.length ? ` (${messages.length})` : ""}`
+              : "Ask AI"}
           </button>
         ))}
       </div>
@@ -268,7 +455,6 @@ export default function MemoryAskPage() {
       {/* ── INBOX ── */}
       {tab === "inbox" && (
         <div className="space-y-3">
-          {/* Search + refresh */}
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
@@ -292,8 +478,7 @@ export default function MemoryAskPage() {
             )}
           </div>
 
-          {/* Message list */}
-          <div className="bg-bg-surface border border-border-faint rounded-xl divide-y divide-border-faint/50 min-h-[240px]">
+          <div className="bg-bg-surface border border-border-faint rounded-xl min-h-[240px]">
             {msgLoading ? (
               <div className="flex items-center justify-center gap-2 py-16 text-text-muted text-sm">
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -325,9 +510,29 @@ export default function MemoryAskPage() {
               </div>
             ) : (
               <div className="p-4 space-y-3">
+                {/* Select all */}
+                <div className="flex items-center gap-2 pb-2 border-b border-border-faint/50">
+                  <input
+                    type="checkbox"
+                    checked={allMsgsChecked}
+                    onChange={toggleAllMsgs}
+                    className="w-3.5 h-3.5 cursor-pointer accent-purple-500"
+                    aria-label="Select all messages"
+                  />
+                  <span className="text-2xs text-text-muted">
+                    {checkedMsgs.size > 0 ? `${checkedMsgs.size} selected` : "Select all"}
+                  </span>
+                </div>
+
                 <AnimatePresence mode="popLayout">
                   {filtered.map((msg, i) => (
-                    <MessageBubble key={msg.id} msg={msg} index={i} />
+                    <MessageBubble
+                      key={msg.id}
+                      msg={msg}
+                      index={i}
+                      checked={checkedMsgs.has(msg.id)}
+                      onCheck={toggleMsg}
+                    />
                   ))}
                 </AnimatePresence>
               </div>
@@ -346,9 +551,45 @@ export default function MemoryAskPage() {
       {/* ── ASK AI ── */}
       {tab === "ask" && (
         <div className="space-y-4">
+          {/* Chat history */}
+          {chatHistory.length > 0 && (
+            <div className="space-y-4">
+              {/* Select all turns */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={allTurnsChecked}
+                  onChange={toggleAllTurns}
+                  className="w-3.5 h-3.5 cursor-pointer accent-purple-500"
+                  aria-label="Select all chat turns"
+                />
+                <span className="text-2xs text-text-muted">
+                  {checkedTurns.size > 0 ? `${checkedTurns.size} selected` : "Select all"}
+                </span>
+              </div>
+
+              {chatHistory.map((turn, idx) => (
+                <ChatHistoryItem
+                  key={turn.id}
+                  turn={turn}
+                  checked={checkedTurns.has(turn.id)}
+                  onCheck={toggleTurn}
+                />
+              ))}
+
+              {asking && (
+                <div className="flex items-center gap-2 ml-5 text-text-muted text-xs">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Searching memory…
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Input box */}
           <div className="bg-bg-surface border border-border-faint rounded-xl p-4">
             <p className="text-2xs text-text-muted font-medium uppercase tracking-wider mb-2">
-              Your question
+              {chatHistory.length > 0 ? "Ask a follow-up" : "Your question"}
             </p>
             <input
               ref={inputRef}
@@ -386,13 +627,7 @@ export default function MemoryAskPage() {
             </div>
           </div>
 
-          <AnimatePresence>
-            {answer && (
-              <AiAnswer answer={answer.answer} sources={answer.sources} />
-            )}
-          </AnimatePresence>
-
-          {!answer && !asking && (
+          {chatHistory.length === 0 && !asking && (
             <div className="text-center py-10 text-text-muted text-xs space-y-1">
               <MessageSquare className="w-6 h-6 mx-auto mb-2 opacity-40" />
               <p>Ask anything about your team&apos;s Slack conversations.</p>
