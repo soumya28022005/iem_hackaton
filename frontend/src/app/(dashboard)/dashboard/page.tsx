@@ -214,6 +214,8 @@ function TaskRow({
 
 function MentionCard({ mention, onRead }: { mention: Mention; onRead: () => void }) {
   const grad = avatarGradient(mention.from);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   return (
     <motion.div
@@ -251,7 +253,7 @@ function MentionCard({ mention, onRead }: { mention: Mention; onRead: () => void
           )}
           <span className="ml-auto flex items-center gap-1 text-[11px] text-text-muted shrink-0">
             <Clock className="w-3 h-3" />
-            {timeAgo(mention.timestamp)}
+            {mounted ? timeAgo(mention.timestamp) : ""}
           </span>
         </div>
         <p className="text-xs text-text-secondary leading-relaxed line-clamp-2 group-hover:text-text-primary transition-colors">
@@ -529,7 +531,6 @@ export default function DashboardPage() {
   const emptyStats: DashboardStats = {
     nexus:   { queries_today: 0, active_incidents: 0, prs_created: 0, memory_items: 0 },
     memory:  { messages_indexed: 0, tasks_detected: 0, decisions_logged: 0, avg_answer_time_ms: 0 },
-    autofix: { total_incidents: 0, avg_mttr_seconds: 0, auto_reverts: 0, safety_blocks: 0 },
   };
 
   return (

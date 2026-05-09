@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { DashboardStats } from "@/lib/types";
-import { formatMTTR } from "@/lib/utils";
 import {
   MessageSquare,
   AlertCircle,
@@ -12,10 +11,6 @@ import {
   CheckSquare2,
   Lightbulb,
   Clock,
-  Bug,
-  Timer,
-  RefreshCw,
-  ShieldOff,
   type LucideIcon,
 } from "lucide-react";
 
@@ -185,44 +180,6 @@ export function UnifiedStats({ stats }: UnifiedStatsProps) {
         </div>
       </section>
 
-      {/* AutoFix Engine Stats */}
-      <section>
-        <SectionHeader
-          dot="bg-autofix-primary"
-          label="AutoFix Engine"
-          textClass="text-autofix-primary"
-        />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <StatCard
-            label="Total Incidents"
-            value={stats.autofix.total_incidents}
-            barColor="#f59e0b"
-            delay={0.4}
-            icon={Bug}
-          />
-          <StatCard
-            label="Avg MTTR"
-            value={formatMTTR(stats.autofix.avg_mttr_seconds)}
-            barColor="#f59e0b"
-            delay={0.45}
-            icon={Timer}
-          />
-          <StatCard
-            label="Auto Reverts"
-            value={stats.autofix.auto_reverts}
-            barColor="#f59e0b"
-            delay={0.5}
-            icon={RefreshCw}
-          />
-          <StatCard
-            label="Safety Blocks"
-            value={stats.autofix.safety_blocks}
-            barColor="#f59e0b"
-            delay={0.55}
-            icon={ShieldOff}
-          />
-        </div>
-      </section>
     </div>
   );
 }

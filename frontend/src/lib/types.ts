@@ -90,10 +90,4 @@ export interface DashboardStats {
     decisions_logged: number;
     avg_answer_time_ms: number;
   };
-  autofix: {
-    total_incidents: number;
-    avg_mttr_seconds: number;
-    auto_reverts: number;
-    safety_blocks: number;
-  };
 }
