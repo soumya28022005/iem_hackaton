@@ -1,5 +1,16 @@
 "use client";
 
+/**
+ * Updated Tasks page
+ * File: frontend/src/app/memory/tasks/page.tsx  (or wherever your tasks route is)
+ *
+ * Changes vs original:
+ *  1. Shows due date badge on each task
+ *  2. Counts down "X days left" / "Overdue" in red
+ *  3. Shows assignee_hint clearly
+ *  4. Real data only — no demo data
+ */
+
 import { motion, AnimatePresence } from "framer-motion";
 import { formatRelativeTime, cn } from "@/lib/utils";
 import {
@@ -9,66 +20,97 @@ import {
   ExternalLink,
   CheckSquare,
   Info,
+  Clock,
+  AlertCircle,
+  User,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { memoryApi, workspaceApi, Task } from "@/lib/api";
 
+// ─── Config maps ─────────────────────────────────────────────────────────────
+
 const priorityConfig = {
-  high: { icon: ArrowUpCircle, color: "text-sev-high", label: "High" },
+  high:   { icon: ArrowUpCircle,    color: "text-sev-high",   label: "High"   },
   medium: { icon: ArrowRightCircle, color: "text-sev-medium", label: "Medium" },
-  low: { icon: ArrowDownCircle, color: "text-sev-low", label: "Low" },
+  low:    { icon: ArrowDownCircle,  color: "text-sev-low",    label: "Low"    },
 };
 
 const statusConfig = {
-  detected: {
-    color: "bg-autofix-primary/10 text-autofix-primary border-autofix-border",
-    label: "Detected",
-  },
-  confirmed: {
-    color: "bg-memory-primary/10 text-memory-primary border-memory-border",
-    label: "Confirmed",
-  },
-  synced_to_jira: {
-    color: "bg-nexus-primary/10 text-nexus-primary border-nexus-border",
-    label: "Synced to Jira",
-  },
-  dismissed: {
-    color: "bg-status-neutral/10 text-status-neutral border-border-default",
-    label: "Dismissed",
-  },
+  detected:      { color: "bg-autofix-primary/10 text-autofix-primary border-autofix-border",       label: "Detected"      },
+  confirmed:     { color: "bg-memory-primary/10 text-memory-primary border-memory-border",           label: "Confirmed"     },
+  synced_to_jira:{ color: "bg-nexus-primary/10 text-nexus-primary border-nexus-border",             label: "Synced to Jira"},
+  dismissed:     { color: "bg-status-neutral/10 text-status-neutral border-border-default",         label: "Dismissed"     },
 };
 
-/**
- * Splits a task's text into the visible label (before the first newline) and
- * the "why it matters" explanation (after the first newline).
- *
- * The text comes from `source_preview` (raw Slack/chat message) and falls
- * back to `title`. A Slack message like:
- *
- *   "Fix auth timeout bug\nThis is blocking prod deploys and affects all users."
- *
- * renders the first line as the checkbox label; the second part only appears
- * when the user clicks the ⓘ button.
- */
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 function splitTaskText(task: Task): { label: string; reason: string | null } {
   const raw = (task.source_preview || task.title || "").trim();
   const newlineIdx = raw.indexOf("\n");
   if (newlineIdx === -1) return { label: raw, reason: null };
-  const label = raw.substring(0, newlineIdx).trim();
-  const reason = raw.substring(newlineIdx + 1).trim() || null;
-  return { label, reason };
+  return {
+    label:  raw.substring(0, newlineIdx).trim(),
+    reason: raw.substring(newlineIdx + 1).trim() || null,
+  };
 }
 
-// ---------------------------------------------------------------------------
-// TaskItem
-// ---------------------------------------------------------------------------
+/**
+ * Returns how many whole days remain until `due`.
+ * Negative = overdue.
+ */
+function daysUntil(due: string | Date | null | undefined): number | null {
+  if (!due) return null;
+  const diff = new Date(due).getTime() - Date.now();
+  return Math.ceil(diff / 86_400_000);
+}
+
+function DueBadge({ dueDate }: { dueDate?: string | null }) {
+  const days = daysUntil(dueDate);
+  if (days === null) return null;
+
+  let label: string;
+  let cls: string;
+
+  if (days < 0) {
+    label = `Overdue by ${Math.abs(days)}d`;
+    cls = "bg-red-500/10 text-red-400 border-red-500/30";
+  } else if (days === 0) {
+    label = "Due today";
+    cls = "bg-orange-500/10 text-orange-400 border-orange-500/30";
+  } else if (days === 1) {
+    label = "Due tomorrow";
+    cls = "bg-yellow-500/10 text-yellow-400 border-yellow-500/30";
+  } else if (days <= 3) {
+    label = `${days}d left`;
+    cls = "bg-yellow-500/10 text-yellow-400 border-yellow-500/30";
+  } else {
+    label = `${days}d left`;
+    cls = "bg-memory-primary/10 text-memory-primary border-memory-border/40";
+  }
+
+  const Icon = days < 0 ? AlertCircle : Clock;
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-medium border",
+        cls
+      )}
+    >
+      <Icon className="w-3 h-3" />
+      {label}
+    </span>
+  );
+}
+
+// ─── TaskItem ─────────────────────────────────────────────────────────────────
 
 function TaskItem({
   task,
   index,
   onComplete,
 }: {
-  task: Task;
+  task: Task & { due_date?: string | null };
   index: number;
   onComplete: (id: string) => void;
 }) {
@@ -79,11 +121,12 @@ function TaskItem({
   const { label, reason } = splitTaskText(task);
 
   const priority =
-    priorityConfig[task.priority as keyof typeof priorityConfig] ||
+    priorityConfig[task.priority as keyof typeof priorityConfig] ??
     priorityConfig.medium;
   const PriorityIcon = priority.icon;
+
   const status =
-    statusConfig[task.status as keyof typeof statusConfig] ||
+    statusConfig[task.status as keyof typeof statusConfig] ??
     statusConfig.detected;
 
   function handleCheck(checked: boolean) {
@@ -105,25 +148,13 @@ function TaskItem({
     <motion.div
       layout
       initial={{ opacity: 0, x: -12 }}
-      animate={{
-        opacity: completing ? 0 : 1,
-        x: 0,
-        scale: completing ? 0.97 : 1,
-      }}
-      exit={{
-        opacity: 0,
-        scale: 0.96,
-        height: 0,
-        marginBottom: 0,
-        paddingTop: 0,
-        paddingBottom: 0,
-      }}
+      animate={{ opacity: completing ? 0 : 1, x: 0, scale: completing ? 0.97 : 1 }}
+      exit={{ opacity: 0, scale: 0.96, height: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0 }}
       transition={{ duration: 0.3, delay: index * 0.04 }}
       className="bg-bg-surface border border-border-faint rounded-xl p-5 hover:border-border-default transition-colors"
     >
-      {/* ── Top row: checkbox + label + "i" button + status badge ── */}
+      {/* ── Top row ── */}
       <div className="flex items-start gap-3">
-        {/* Checkbox */}
         <input
           type="checkbox"
           aria-label={`Mark "${label}" as complete`}
@@ -131,15 +162,18 @@ function TaskItem({
           onChange={(e) => handleCheck(e.target.checked)}
         />
 
-        {/* Label + controls */}
         <div className="flex-1 min-w-0">
+          {/* Title row */}
           <div className="flex items-start gap-2 flex-wrap">
             <p className="text-sm font-medium text-text-primary leading-snug flex-1">
               {label}
             </p>
 
-            <div className="flex items-center gap-2 shrink-0">
-              {/* "i" button — only rendered when there IS a reason */}
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+              {/* Due date badge */}
+              <DueBadge dueDate={task.due_date} />
+
+              {/* "i" button */}
               {reason && (
                 <button
                   onClick={() => setShowReason((s) => !s)}
@@ -189,7 +223,6 @@ function TaskItem({
 
           {/* Progress slider */}
           <div className="mt-3.5 flex items-center gap-3 max-w-xs">
-            {/* Visual track */}
             <div className="relative flex-1 h-1.5 bg-bg-elevated rounded-full overflow-hidden">
               <div
                 className={cn(
@@ -198,7 +231,6 @@ function TaskItem({
                 )}
                 style={{ width: `${progress}%` }}
               />
-              {/* Transparent range input sits on top for interaction */}
               <input
                 type="range"
                 min={0}
@@ -210,7 +242,6 @@ function TaskItem({
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
             </div>
-
             <span
               className={cn(
                 "text-xs font-mono tabular-nums w-9 text-right shrink-0 transition-colors",
@@ -223,19 +254,22 @@ function TaskItem({
         </div>
       </div>
 
-      {/* ── Footer: priority + assignee + timestamp + jira ── */}
-      <div className="mt-3 ml-8 flex items-center justify-between text-2xs text-text-muted">
+      {/* ── Footer ── */}
+      <div className="mt-3 ml-8 flex items-center justify-between text-2xs text-text-muted flex-wrap gap-2">
         <div className="flex items-center gap-3 flex-wrap">
           <PriorityIcon className={cn("w-3.5 h-3.5 shrink-0", priority.color)} />
           <span className="text-2xs font-medium text-text-muted/70">
             {priority.label} priority
           </span>
+
+          {/* Assignee — highlighted */}
           {task.assignee_hint && (
-            <span>
-              Assignee:{" "}
-              <span className="text-text-secondary">{task.assignee_hint}</span>
+            <span className="flex items-center gap-1 bg-memory-primary/10 text-memory-primary px-2 py-0.5 rounded-full font-medium">
+              <User className="w-3 h-3" />
+              @{task.assignee_hint}
             </span>
           )}
+
           <span className="font-mono">
             Detected {formatRelativeTime(task.detected_at)}
           </span>
@@ -252,12 +286,10 @@ function TaskItem({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function MemoryTasksPage() {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<(Task & { due_date?: string | null })[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -265,7 +297,7 @@ export default function MemoryTasksPage() {
       setLoading(true);
       try {
         const { workspaces } = await workspaceApi.list();
-        if (workspaces && workspaces.length > 0) {
+        if (workspaces?.length) {
           const data = await memoryApi.listTasks(workspaces[0].id);
           setTasks(data);
         }
@@ -278,9 +310,8 @@ export default function MemoryTasksPage() {
     loadData();
   }, []);
 
-  const handleCompleteTask = (id: string) => {
+  const handleCompleteTask = (id: string) =>
     setTasks((prev) => prev.filter((t) => t.id !== id));
-  };
 
   if (loading) {
     return (
@@ -298,19 +329,18 @@ export default function MemoryTasksPage() {
           Detected Tasks
         </h1>
         <p className="text-sm text-text-secondary mt-1">
-          Tasks automatically detected from team conversations. Tick a checkbox
-          to mark complete — it will be removed from this list.
+          Tasks automatically created when someone is @mentioned in a message.
+          Deadline phrases like &quot;7d&quot; or &quot;by Friday&quot; set the due date automatically.
         </p>
       </div>
 
-      {/* Task list */}
       {tasks.length === 0 ? (
         <div className="p-12 text-center border border-dashed border-border-default rounded-2xl">
           <CheckSquare className="w-10 h-10 text-text-muted mx-auto mb-3" />
-          <p className="text-text-secondary font-medium">No tasks detected yet</p>
+          <p className="text-text-secondary font-medium">No tasks yet</p>
           <p className="text-xs text-text-muted mt-1 max-w-sm mx-auto">
-            Tasks will appear here automatically as your team discusses action
-            items in connected sources.
+            When someone @mentions a teammate in a connected Slack channel, a task
+            will appear here automatically.
           </p>
         </div>
       ) : (

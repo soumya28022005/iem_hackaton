@@ -205,6 +205,29 @@ export const dashboardApi = {
     const res = await api.get("/dashboard/incidents/series", { params: { workspace_id: workspaceId, days } });
     return res.data;
   },
+  getMentions: async (workspaceId: string, limit = 20) => {
+    const res = await api.get("/dashboard/mentions", { params: { workspace_id: workspaceId, limit } });
+    return res.data as Array<{
+      id: string;
+      from: string;
+      message: string;
+      timestamp: string;
+      channel: string | null;
+      unread: boolean;
+    }>;
+  },
+  getMyTasks: async (workspaceId: string, limit = 20) => {
+    const res = await api.get("/dashboard/my-tasks", { params: { workspace_id: workspaceId, limit } });
+    return res.data as Array<{
+      id: string;
+      title: string;
+      status: string;
+      priority: string;
+      assignee_hint: string | null;
+      detected_at: string;
+      source_preview: string | null;
+    }>;
+  },
 };
 
 

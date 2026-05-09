@@ -5,7 +5,7 @@ async function findWorkspaceByChannelId(channelId) {
   return prisma.workspace.findFirst();
 }
 
-async function handleSlackMessage({ message, client }) {
+async function handleSlackMessage({ message, client }) { 
   if (message.bot_id || message.subtype === 'bot_message') return { skipped: true };
 
   const text = message.text;
@@ -28,13 +28,18 @@ async function handleSlackMessage({ message, client }) {
     console.error('[Slack Service] Error fetching user info:', error.message);
   }
 
-  // Channel name fetch kora
+  // Channel name fetch kora (channels:read scope optional — gracefully skip if missing)
   let channelName = null;
   try {
     const channelInfo = await client.conversations.info({ channel: message.channel });
     channelName = channelInfo.channel?.name || null;
   } catch (error) {
-    console.error('[Slack Service] Error fetching channel info:', error.message);
+    // missing_scope error suppress kora — channel name ছাড়াই ingest cholbe
+    if (error.data?.error === 'missing_scope') {
+      // silently skip — channel_id will be used as fallback in metadata
+    } else {
+      console.error('[Slack Service] Error fetching channel info:', error.message);
+    }
   }
 
   const timestamp = new Date((message.ts || Date.now() / 1000) * 1000);

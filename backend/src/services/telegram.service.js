@@ -1,5 +1,6 @@
 const { prisma } = require('../lib/prisma');
 const { ingestText } = require('./memory.service');
+const { autoCreateTasksFromMessage } = require('./memory/taskDetection.service');
 
 function extractMessageText(message) {
   return message.text || message.caption || null;
@@ -41,20 +42,18 @@ async function handleTelegramUpdate(update) {
   const sender = getSender(message);
   const channelName = getChannelName(message);
   const timestamp = message.date ? new Date(message.date * 1000) : new Date();
-  
+
   // 1. Handle Voice Notes
   if (message.voice || message.audio) {
     const fileId = (message.voice || message.audio).file_id;
     const { getBot } = require('../bot');
     const bot = getBot();
-    
     if (!bot) return { skipped: true, reason: 'bot not initialized' };
 
     const fileLink = await bot.telegram.getFileLink(fileId);
     const response = await fetch(fileLink.href);
     const buffer = Buffer.from(await response.arrayBuffer());
 
-    // Create a temporary file object for ingestFile
     const file = {
       originalname: `voice-${fileId.slice(0, 8)}.ogg`,
       mimetype: message.voice ? 'audio/ogg' : (message.audio.mime_type || 'audio/mpeg'),
@@ -95,6 +94,33 @@ async function handleTelegramUpdate(update) {
       timestamp: timestamp.toISOString(),
     },
   });
+
+  // ── AUTO TASK DETECTION ────────────────────────────────────────────────────
+  // ingestText এর পরে সবচেয়ে নতুন chunk টা খুঁজে বের করো
+  // (chunk_id directly পাওয়া যাচ্ছে না, তাই source_id দিয়ে latest chunk নাও)
+  try {
+    const latestChunk = await prisma.documentChunk.findFirst({
+      where: { source_id: source.id },
+      orderBy: { created_at: 'desc' },
+      select: { id: true },
+    });
+
+    const tasks = await autoCreateTasksFromMessage(
+      prisma,
+      workspace.id,
+      text,
+      sender,
+      latestChunk?.id || null
+    );
+
+    if (tasks.length > 0) {
+      console.log(`[TaskDetection] ${tasks.length} task(s) created → assignees: ${tasks.map(t => t.assignee_hint).join(', ')}`);
+    }
+  } catch (taskErr) {
+    // task detection fail হলেও main flow block হবে না
+    console.error('[TaskDetection] Error:', taskErr.message);
+  }
+  // ──────────────────────────────────────────────────────────────────────────
 
   return { ingested: true, workspace_id: workspace.id, source_id: source.id, type: 'text' };
 }

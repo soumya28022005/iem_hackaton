@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSession } from "next-auth/react";
 import { UnifiedStats } from "@/components/dashboard/UnifiedStats";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 
@@ -42,6 +43,7 @@ interface Mention {
   from: string;
   message: string;
   timestamp: Date;
+  channel?: string | null;
   /** 'D' marker — drips in gradually over time */
   delayed?: boolean;
   delayMs?: number;
@@ -246,6 +248,9 @@ function MentionCard({ mention, onRead }: { mention: Mention; onRead: () => void
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2 mb-0.5 flex-wrap">
           <span className="text-xs font-semibold text-nexus-primary">@{mention.from}</span>
+          {mention.channel && (
+            <span className="text-[9px] font-mono text-text-muted">#{mention.channel}</span>
+          )}
           {mention.delayed && (
             <span className="text-[9px] font-mono font-bold px-1 py-0 rounded border border-amber-700/50 text-amber-400/70 bg-amber-950/20">
               D
@@ -267,48 +272,113 @@ function MentionCard({ mention, onRead }: { mention: Mention; onRead: () => void
 // ─── Personal Hub section ─────────────────────────────────────────────────────
 
 function PersonalHub() {
+  const { data: session } = useSession();
   const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const { currentWorkspace } = useWorkspaceStore();
 
-  // Visible tasks start without the delayed ones
-  const [tasks,         setTasks]         = useState<ContributionTask[]>(SEED_TASKS.filter(t => !t.delayed));
-  const [mentions,      setMentions]      = useState<Mention[]>(SEED_MENTIONS.filter(m => m.visible));
+  // Real user info from session
+  const userName  = session?.user?.name  ?? "You";
+  const userEmail = session?.user?.email ?? "";
+  // Initials: "Soumya Chakraborty" → "SC"
+  const userInitials = userName
+    .split(" ")
+    .map((w: string) => w[0]?.toUpperCase() ?? "")
+    .join("")
+    .slice(0, 2) || "??";
+  // Role from email domain বা fallback
+  const userRole = userEmail.includes("admin") ? "Admin · NexusOps" : "SRE · NexusOps";
+
+  const [tasks,         setTasks]         = useState<ContributionTask[]>([]);
+  const [mentions,      setMentions]      = useState<Mention[]>([]);
   const [contributions, setContributions] = useState(0);
   const [plusFlash,     setPlusFlash]     = useState(false);
+  const [loadingHub,    setLoadingHub]    = useState(true);
 
-  // Drip-feed delayed tasks
+  // Real data fetch from API
   useEffect(() => {
-    SEED_TASKS.filter(t => t.delayed).forEach(task => {
-      const id = setTimeout(() => {
-        setTasks(prev => prev.find(t => t.id === task.id) ? prev : [...prev, { ...task }]);
-      }, task.delayMs ?? 5000);
-      timerRefs.current.push(id);
-    });
+    if (!currentWorkspace) return;
+
+    const fetchHubData = async () => {
+      setLoadingHub(true);
+      try {
+        const [apiTasks, apiMentions] = await Promise.all([
+          dashboardApi.getMyTasks(currentWorkspace.id, 10),
+          dashboardApi.getMentions(currentWorkspace.id, 15),
+        ]);
+
+        // API tasks → ContributionTask shape
+        if (apiTasks.length > 0) {
+          setTasks(apiTasks.map(t => ({
+            id:      t.id,
+            label:   t.title,
+            checked: t.status === 'done',
+          })));
+        } else {
+          // Fallback to SEED when DB has no tasks yet
+          setTasks(SEED_TASKS.filter(t => !t.delayed));
+          // Drip delayed seed tasks
+          SEED_TASKS.filter(t => t.delayed).forEach(task => {
+            const tid = setTimeout(() => {
+              setTasks(prev => prev.find(t => t.id === task.id) ? prev : [...prev, { ...task }]);
+            }, task.delayMs ?? 5000);
+            timerRefs.current.push(tid);
+          });
+        }
+
+        // API mentions → Mention shape
+        if (apiMentions.length > 0) {
+          setMentions(apiMentions.map(m => ({
+            id:        m.id,
+            from:      m.from,
+            message:   m.message,
+            timestamp: new Date(m.timestamp),
+            visible:   true,
+            unread:    m.unread,
+            channel:   m.channel,
+          })));
+        } else {
+          // Fallback to SEED when no Slack messages ingested yet
+          setMentions(SEED_MENTIONS.filter(m => m.visible));
+          SEED_MENTIONS.filter(m => m.delayed).forEach(mention => {
+            const mid = setTimeout(() => {
+              setMentions(prev => prev.find(m => m.id === mention.id) ? prev : [{ ...mention, visible: true }, ...prev]);
+            }, mention.delayMs ?? 5000);
+            timerRefs.current.push(mid);
+          });
+        }
+      } catch (err) {
+        console.warn("[PersonalHub] API fetch failed, using seed data:", err);
+        // Fallback to SEED on error
+        setTasks(SEED_TASKS.filter(t => !t.delayed));
+        setMentions(SEED_MENTIONS.filter(m => m.visible));
+      } finally {
+        setLoadingHub(false);
+      }
+    };
+
+    fetchHubData();
     return () => timerRefs.current.forEach(clearTimeout);
-  }, []);
-
-  // Drip-feed delayed mentions
-  useEffect(() => {
-    SEED_MENTIONS.filter(m => m.delayed).forEach(mention => {
-      const id = setTimeout(() => {
-        setMentions(prev => prev.find(m => m.id === mention.id) ? prev : [{ ...mention, visible: true }, ...prev]);
-      }, mention.delayMs ?? 5000);
-      timerRefs.current.push(id);
-    });
-  }, []);
+  }, [currentWorkspace]);
 
   const handleToggle = (id: string) => {
-    setTasks(prev => prev.map(t => {
-      if (t.id !== id) return t;
-      const next = !t.checked;
-      if (next) {
-        setContributions(c => c + 1);
-        setPlusFlash(true);
-        setTimeout(() => setPlusFlash(false), 1000);
-      } else {
-        setContributions(c => Math.max(0, c - 1));
-      }
-      return { ...t, checked: next };
-    }));
+    // setTasks-এর বাইরে contribution update করা হচ্ছে
+    // কারণ map callback-এর ভেতরে setState করলে React Strict Mode-এ 2x run হয়
+    setTasks(prev => {
+      const target = prev.find(t => t.id === id);
+      if (!target) return prev;
+      const next = !target.checked;
+      // contribution change — map-এর বাইরে, setTimeout দিয়ে schedule করা
+      setTimeout(() => {
+        if (next) {
+          setContributions(c => c + 1);
+          setPlusFlash(true);
+          setTimeout(() => setPlusFlash(false), 1000);
+        } else {
+          setContributions(c => Math.max(0, c - 1));
+        }
+      }, 0);
+      return prev.map(t => t.id === id ? { ...t, checked: next } : t);
+    });
   };
 
   const handleRead = (id: string) => {
@@ -345,13 +415,13 @@ function PersonalHub() {
           <div className="flex items-center gap-3 relative">
             <div className="relative">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-700 flex items-center justify-center text-base font-bold text-white shadow-lg shadow-violet-900/40">
-                SC
+                {userInitials}
               </div>
               <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-status-success border-2 border-bg-surface" />
             </div>
             <div>
-              <div className="text-sm font-semibold text-text-primary">Soumya C.</div>
-              <div className="text-2xs text-text-muted font-mono">SRE · NexusOps</div>
+              <div className="text-sm font-semibold text-text-primary">{userName}</div>
+              <div className="text-2xs text-text-muted font-mono">{userRole}</div>
             </div>
           </div>
 
@@ -431,11 +501,15 @@ function PersonalHub() {
           </div>
 
           <div className="flex flex-col gap-2 flex-1 overflow-y-auto max-h-[340px] pr-0.5">
-            <AnimatePresence initial={false}>
-              {tasks.map(task => (
-                <TaskRow key={task.id} task={task} onToggle={() => handleToggle(task.id)} />
-              ))}
-            </AnimatePresence>
+            {loadingHub ? (
+              <div className="py-10 text-center text-text-muted text-sm font-mono animate-pulse">Loading tasks…</div>
+            ) : (
+              <AnimatePresence initial={false}>
+                {tasks.map(task => (
+                  <TaskRow key={task.id} task={task} onToggle={() => handleToggle(task.id)} />
+                ))}
+              </AnimatePresence>
+            )}
           </div>
 
           <p className="text-2xs text-text-muted pt-2 border-t border-border-faint mt-auto font-mono">
@@ -460,13 +534,17 @@ function PersonalHub() {
           </div>
 
           <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[340px] pr-0.5">
-            <AnimatePresence initial={false}>
-              {mentions.map(m => (
-                <MentionCard key={m.id} mention={m} onRead={() => handleRead(m.id)} />
-              ))}
-            </AnimatePresence>
+            {loadingHub ? (
+              <div className="py-10 text-center text-text-muted text-sm font-mono animate-pulse">Loading messages…</div>
+            ) : (
+              <AnimatePresence initial={false}>
+                {mentions.map(m => (
+                  <MentionCard key={m.id} mention={m} onRead={() => handleRead(m.id)} />
+                ))}
+              </AnimatePresence>
+            )}
 
-            {mentions.length === 0 && (
+            {!loadingHub && mentions.length === 0 && (
               <div className="py-10 text-center text-text-muted text-sm">
                 No mentions yet
               </div>

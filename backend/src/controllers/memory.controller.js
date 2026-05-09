@@ -6,6 +6,7 @@ const memoryService = require('../services/memory.service');
 const jiraService = require('../services/jira.service');
 const telegramService = require('../services/telegram.service');
 const { requireWorkspaceAccess } = require('../middleware/auth');
+const { autoCreateTasksFromMessage } = require('../services/memory/taskDetection.service');
 
 exports.getSources = async (req, res) => {
   const sources = await prisma.source.findMany({
@@ -26,18 +27,18 @@ exports.ingestDocument = async (req, res) => {
 
   const source = input.content
     ? await memoryService.ingestText({
-      workspaceId: input.workspace_id,
-      name: input.name,
-      sourceType: input.source_type,
-      text: input.content,
-      metadata: input.metadata,
-    })
+        workspaceId: input.workspace_id,
+        name: input.name,
+        sourceType: input.source_type,
+        text: input.content,
+        metadata: input.metadata,
+      })
     : await memoryService.createSource({
-      workspaceId: input.workspace_id,
-      name: input.name,
-      sourceType: input.source_type,
-      metadata: input.metadata,
-    });
+        workspaceId: input.workspace_id,
+        name: input.name,
+        sourceType: input.source_type,
+        metadata: input.metadata,
+      });
 
   res.status(201).json(source);
 };
@@ -79,7 +80,7 @@ exports.query = async (req, res) => {
 exports.getMessages = async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 100, 200);
   const offset = parseInt(req.query.offset) || 0;
-  const sourceType = req.query.source_type || null; // e.g. 'slack'
+  const sourceType = req.query.source_type || null;
 
   const where = {
     workspace_id: req.workspace_id,
@@ -88,7 +89,6 @@ exports.getMessages = async (req, res) => {
 
   const chunks = await prisma.documentChunk.findMany({
     where,
-    // nulls-last: rows with no timestamp go at the bottom
     orderBy: [{ timestamp: 'desc' }, { created_at: 'desc' }],
     take: limit,
     skip: offset,
@@ -155,7 +155,46 @@ exports.telegramWebhook = async (req, res) => {
   if (config.TELEGRAM_BOT_TOKEN && token && token !== config.TELEGRAM_BOT_TOKEN) {
     throw new AppError(401, 'Invalid Telegram webhook token');
   }
+
   const result = await telegramService.handleTelegramUpdate(req.body);
+
+  // ── AUTO TASK DETECTION ──────────────────────────────────────────────────
+  // message ingest হলে @mention খুঁজে task create করো
+  try {
+    const msg = req.body.message || req.body.edited_message || {};
+    const messageText = msg.text || msg.caption || '';
+
+    if (result.ingested && messageText) {
+      const senderName =
+        msg.from?.username ||
+        msg.from?.first_name ||
+        String(msg.from?.id || 'unknown');
+
+      // workspace_id আর chunk_id — telegramService যদি return করে তাহলে সেটা use করো,
+      // নাহলে fallback হিসেবে workspace_id টা chat metadata থেকে বের করো
+      const workspaceId = result.workspace_id || null;
+      const chunkId = result.chunk_id || null;
+
+      if (workspaceId) {
+        const tasks = await autoCreateTasksFromMessage(
+          prisma,
+          workspaceId,
+          messageText,
+          senderName,
+          chunkId
+        );
+
+        if (tasks.length > 0) {
+          console.log(`[TaskDetection] ${tasks.length} task(s) created from Telegram message`);
+        }
+      }
+    }
+  } catch (taskErr) {
+    // task detection fail হলেও webhook response block করবো না
+    console.error('[TaskDetection] Error:', taskErr.message);
+  }
+  // ────────────────────────────────────────────────────────────────────────
+
   res.json({ status: result.ingested ? 'ingested' : 'skipped', ...result });
 };
 
