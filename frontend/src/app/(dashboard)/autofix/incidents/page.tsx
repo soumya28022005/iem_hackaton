@@ -1,6 +1,6 @@
 "use client";
 
-import { IncidentCard } from "@/components/autofix/IncidentCard";
+
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -123,19 +123,7 @@ export default function IncidentsPage() {
         ))}
       </div>
 
-      {/* Incident List */}
-      <div className="space-y-2.5">
-        {filtered.length > 0 ? (
-          filtered.map((incident, i) => (
-            <IncidentCard key={incident.id} incident={incident} index={i} repoName={incident.repository_id ? repos[incident.repository_id] : undefined} />
-          ))
-        ) : (
-          <div className="py-16 text-center">
-            <AlertTriangle className="w-10 h-10 text-text-muted mx-auto mb-3" />
-            <p className="text-sm text-text-muted">No incidents match this filter</p>
-          </div>
-        )}
-      </div>
+      
 
       {/* Create Manual Incident Modal */}
       <AnimatePresence>
