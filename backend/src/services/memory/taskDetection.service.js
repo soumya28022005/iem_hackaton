@@ -167,7 +167,6 @@ async function autoCreateTasksFromMessage(
         priority,
         assignee_hint: mention,
         deadline_hint: dueDate ? formatDeadlineHint(dueDate) : null,
-        due_date: dueDate ?? null,        // ← new DB column (see migration below)
         source_chunk_id: sourceChunkId,
         source_preview: sourcePreview,
       },
